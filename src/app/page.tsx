@@ -19,6 +19,15 @@ export default function HomePage() {
       </div>
       <div className="flex flex-wrap gap-3">
         <Button asChild>
+          <Link href="/login">Login academia</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/balcao">Balcão</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin">Admin (plataforma)</Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link href="/api/health">Health check</Link>
         </Button>
       </div>

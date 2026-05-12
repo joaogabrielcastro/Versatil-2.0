@@ -21,6 +21,10 @@ const envSchema = z.object({
     .min(32, "NEXTAUTH_SECRET deve ter ao menos 32 caracteres"),
   /** Opcional: desativa migrações no start (ex.: job workers) */
   SKIP_MIGRATIONS: z.enum(["true", "false"]).optional(),
+  /** Bearer para GET /api/cron/recalculate-students (Coolify / cron externo) */
+  CRON_SECRET: z.string().min(8).optional(),
+  /** Bearer para POST /api/webhooks/gateway (ingestão idempotente → fila) */
+  WEBHOOK_INGEST_SECRET: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
