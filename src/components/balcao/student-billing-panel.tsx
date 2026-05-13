@@ -68,6 +68,31 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
     }
   }
 
+  async function stripeCheckout(invoiceId: string) {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/billing/stripe/checkout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        url?: string | null;
+      };
+      if (!res.ok) {
+        window.alert(j.error ?? "Não foi possível iniciar o checkout.");
+        return;
+      }
+      if (j.url) {
+        window.location.href = j.url;
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function settle(id: string) {
     setBusy(true);
     try {
@@ -135,15 +160,26 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                   </span>
                 </div>
                 {inv.status === "open" ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void settle(inv.id)}
-                  >
-                    Liquidar (balcão)
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      disabled={busy}
+                      onClick={() => void stripeCheckout(inv.id)}
+                    >
+                      Pagar (Stripe)
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void settle(inv.id)}
+                    >
+                      Liquidar (balcão)
+                    </Button>
+                  </div>
                 ) : null}
               </li>
             ))

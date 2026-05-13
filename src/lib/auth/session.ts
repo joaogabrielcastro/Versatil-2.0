@@ -1,4 +1,3 @@
-import "server-only";
 import { cookies } from "next/headers";
 import { getEnv } from "@/lib/env";
 import { AUTH_COOKIE_NAME } from "./constants";

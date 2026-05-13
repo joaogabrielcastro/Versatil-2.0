@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -25,6 +24,40 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(8).optional(),
   /** Bearer para POST /api/webhooks/gateway (ingestão idempotente → fila) */
   WEBHOOK_INGEST_SECRET: z.string().min(16).optional(),
+  /** 64 hex chars (32 bytes) — preferencial; senão deriva de JWT_SECRET (menos seguro) */
+  PAYMENT_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, "PAYMENT_ENCRYPTION_KEY deve ser 64 caracteres hex")
+    .optional(),
+  /** Stripe global (MVP); produção multi-tenant: preferir credenciais cifradas por tenant */
+  STRIPE_SECRET_KEY: z.string().min(10).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(10).optional(),
+  /** URL pública do app (redirects Stripe) */
+  APP_URL: z.string().url().optional(),
+  /** Push opcional para hardware de catraca */
+  TURNSTILE_PUSH_URL: z.string().url().optional(),
+  /** Nome no campo `service` dos logs JSON (default: versatil-worker) */
+  OBSERVABILITY_SERVICE: z.string().min(1).max(64).optional(),
+  /** `json` = uma linha JSON por log; `text` = legível no terminal */
+  OBSERVABILITY_LOG_FORMAT: z.enum(["json", "text"]).optional(),
+  /** Intervalo em ms para métricas de fila (snapshot); default 60000 */
+  OBSERVABILITY_METRICS_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(600_000)
+    .optional(),
+  /** POST JSON quando há alerta (Slack incoming, n8n, PagerDuty, etc.) */
+  OBSERVABILITY_ALERT_WEBHOOK_URL: z.string().url().optional(),
+  /** Bearer opcional para o webhook de alertas */
+  OBSERVABILITY_ALERT_WEBHOOK_TOKEN: z.string().min(8).optional(),
+  /** Se waiting > este valor, envia alerta `bull.queue_backlog` (0 = desligado) */
+  OBSERVABILITY_ALERT_QUEUE_WAITING_THRESHOLD: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .max(1_000_000)
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

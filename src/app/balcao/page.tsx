@@ -73,7 +73,7 @@ export default async function BalcaoDashboardPage() {
       <section className="mt-10">
         <h2 className="text-lg font-medium">Acessos (tempo real)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Atualização periódica via SSE.
+          Atualização a cada poucos segundos (polling).
         </p>
         <div className="mt-4">
           <AccessFeed />

@@ -119,7 +119,7 @@ export default function AlunosPage() {
           <div className="mt-2 rounded-lg border border-border p-4">
             <NewStudentForm
               onCreated={() => {
-                void query.refetch();
+                void query.refetch().catch(() => {});
               }}
             />
           </div>

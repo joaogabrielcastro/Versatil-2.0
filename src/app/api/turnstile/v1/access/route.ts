@@ -1,9 +1,10 @@
-import "server-only";
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accessEvents, students, turnstileDevices } from "@/lib/db/schema";
+import { getQueue } from "@/lib/queues/bull";
+import { getEnv } from "@/lib/env";
 import { withBypassRlsTransaction, withTenantTransaction } from "@/lib/db/with-tenant";
 
 export const dynamic = "force-dynamic";
@@ -75,14 +76,23 @@ export async function POST(request: Request) {
     }
 
     if (student.status === "active") {
-      await tx.insert(accessEvents).values({
-        tenantId: device.tenantId,
+      const [ev] = await tx
+        .insert(accessEvents)
+        .values({
+          tenantId: device.tenantId,
+          studentId: student.id,
+          deviceId: device.id,
+          allowed: true,
+          reason: null,
+        })
+        .returning({ id: accessEvents.id });
+      return {
+        allowed: true as const,
+        reason: null,
+        accessEventId: ev!.id,
         studentId: student.id,
         deviceId: device.id,
-        allowed: true,
-        reason: null,
-      });
-      return { allowed: true as const, reason: null };
+      };
     }
 
     const reason =
@@ -102,6 +112,21 @@ export async function POST(request: Request) {
           : "Aluno inativo.",
     };
   });
+
+  if (result.allowed && "accessEventId" in result && getEnv().TURNSTILE_PUSH_URL) {
+    await getQueue("turnstileSync").add(
+      "access",
+      {
+        tenantId: device.tenantId,
+        studentId: result.studentId,
+        deviceId: result.deviceId,
+        allowed: true,
+        reason: null,
+        accessEventId: result.accessEventId,
+      },
+      { removeOnComplete: 100, removeOnFail: 40 },
+    );
+  }
 
   if (result.allowed) {
     return NextResponse.json({ open: true });

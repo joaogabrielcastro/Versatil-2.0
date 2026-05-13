@@ -362,3 +362,28 @@ export const webhookDedupe = pgTable(
     ),
   ],
 );
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => tenantUsers.id, {
+      onDelete: "set null",
+    }),
+    action: varchar("action", { length: 96 }).notNull(),
+    entity: varchar("entity", { length: 64 }).notNull(),
+    entityId: varchar("entity_id", { length: 64 }),
+    payload: jsonb("payload"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("audit_logs_tenant_created_idx").on(t.tenantId, t.createdAt),
+  ],
+);

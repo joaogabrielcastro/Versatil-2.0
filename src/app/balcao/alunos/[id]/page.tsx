@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { StudentBillingPanel } from "@/components/balcao/student-billing-panel";
+import { StudentSubscriptionsPanel } from "@/components/balcao/student-subscriptions-panel";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
@@ -50,6 +51,16 @@ export default async function AlunoDetalhePage({
           </p>
         </div>
       </div>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-medium">Assinaturas</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Vincule planos ao aluno (mensalidade, pacotes).
+        </p>
+        <div className="mt-4">
+          <StudentSubscriptionsPanel studentId={student.id} />
+        </div>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-medium">Cobrança</h2>

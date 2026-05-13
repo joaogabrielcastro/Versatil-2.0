@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
@@ -125,5 +126,15 @@ export async function PATCH(
   }
 
   await recalculateStudentStatus(tenantId, id);
+
+  await logAudit({
+    tenantId,
+    actorUserId: session.sub,
+    action: "student.updated",
+    entity: "student",
+    entityId: id,
+    payload: body,
+  });
+
   return NextResponse.json({ student: updated });
 }

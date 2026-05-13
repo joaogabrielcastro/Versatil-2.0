@@ -1,4 +1,3 @@
-import "server-only";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
 import { getEnv } from "@/lib/env";

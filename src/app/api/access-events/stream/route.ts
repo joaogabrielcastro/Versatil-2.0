@@ -18,6 +18,16 @@ export async function GET(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
+
+      function safeEnqueue(chunk: Uint8Array) {
+        if (closed) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          closed = true;
+        }
+      }
+
       const tick = async () => {
         if (closed) return;
         try {
@@ -40,17 +50,35 @@ export async function GET(request: Request) {
               createdAt: r.createdAt.toISOString(),
             })),
           });
-          controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+          safeEnqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ events: [] })}\n\n`),
           );
         }
       };
 
-      await tick();
+      await tick().catch(() => {
+        closed = true;
+      });
+      if (closed) {
+        try {
+          controller.close();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       const timer = setInterval(() => {
-        void tick();
+        void tick().catch(() => {
+          closed = true;
+          clearInterval(timer);
+          try {
+            controller.close();
+          } catch {
+            /* ignore */
+          }
+        });
       }, 4000);
 
       request.signal.addEventListener("abort", () => {

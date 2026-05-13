@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
+import { log } from "@/lib/observability/logger";
 import { importJobs, students } from "@/lib/db/schema";
+import type { ImportJobPayload } from "@/lib/queues/job-payloads";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
-import type { ImportJobPayload } from "@/lib/queues/job-payloads";
 
 function pick(
   row: Record<string, string>,
@@ -20,6 +21,12 @@ export async function processImportJob(data: ImportJobPayload): Promise<void> {
   const touched = new Set<string>();
   let inserted = 0;
   let failed = 0;
+
+  log.info("import.job_start", {
+    importJobId,
+    tenantId,
+    rowCount: rows.length,
+  });
 
   await withTenantTransaction(tenantId, async (tx) => {
     await tx
@@ -80,4 +87,12 @@ export async function processImportJob(data: ImportJobPayload): Promise<void> {
   for (const id of touched) {
     await recalculateStudentStatus(tenantId, id);
   }
+
+  log.info("import.job_done", {
+    importJobId,
+    tenantId,
+    inserted,
+    failed,
+    recalculatedStudents: touched.size,
+  });
 }

@@ -10,6 +10,7 @@ import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
 import { tenantUsers } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
 import { getTenantIdBySlug } from "@/lib/tenant/resolve";
+import { logAudit } from "@/lib/audit/log";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,12 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const h = await headers();
+  const ip =
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    h.get("x-real-ip") ??
+    "unknown";
+
   let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(await request.json());
@@ -27,7 +34,6 @@ export async function POST(request: Request) {
     return jsonError(400, "Payload inválido.");
   }
 
-  const h = await headers();
   const slug = body.tenantSlug ?? h.get("x-tenant-slug");
   if (!slug) {
     return jsonError(
@@ -39,6 +45,18 @@ export async function POST(request: Request) {
   const tenantId = await getTenantIdBySlug(slug);
   if (!tenantId) {
     return jsonError(404, "Academia não encontrada.");
+  }
+
+  const { checkLoginRateLimit } = await import("@/lib/auth/login-rate-limit");
+  const rl = checkLoginRateLimit(`${ip}:${slug}:${body.email.toLowerCase()}`);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Tente novamente em instantes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSec) },
+      },
+    );
   }
 
   const user = await withBypassRlsTransaction(async (tx) => {
@@ -63,8 +81,23 @@ export async function POST(request: Request) {
     !user ||
     !(await verifyPassword(body.password, user.passwordHash))
   ) {
+    void logAudit({
+      tenantId,
+      actorUserId: null,
+      action: "auth.login_failed",
+      entity: "tenant_user",
+      payload: { email: body.email.toLowerCase() },
+    }).catch(() => {});
     return jsonError(401, "Credenciais inválidas.");
   }
+
+  void logAudit({
+    tenantId,
+    actorUserId: user.id,
+    action: "auth.login_success",
+    entity: "tenant_user",
+    entityId: user.id,
+  }).catch(() => {});
 
   const token = await signSessionToken(
     {

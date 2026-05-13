@@ -39,6 +39,8 @@ export default function LoginPage() {
       }
       router.push(nextPath.startsWith("/") ? nextPath : "/balcao");
       router.refresh();
+    } catch {
+      setError("Erro de rede. Tente de novo.");
     } finally {
       setLoading(false);
     }

@@ -19,3 +19,14 @@ export const importJobPayloadSchema = z.object({
 });
 
 export type ImportJobPayload = z.infer<typeof importJobPayloadSchema>;
+
+export const turnstileSyncJobSchema = z.object({
+  tenantId: z.string().uuid(),
+  studentId: z.string().uuid().optional(),
+  deviceId: z.string().uuid().optional(),
+  allowed: z.boolean().optional(),
+  reason: z.string().max(255).optional().nullable(),
+  accessEventId: z.string().uuid().optional(),
+});
+
+export type TurnstileSyncJobPayload = z.infer<typeof turnstileSyncJobSchema>;

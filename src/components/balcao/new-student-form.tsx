@@ -40,6 +40,8 @@ export function NewStudentForm({ onCreated }: Props) {
       setEmail("");
       onCreated();
       setMsg("Aluno criado.");
+    } catch {
+      setMsg("Erro de rede ou servidor indisponível.");
     } finally {
       setLoading(false);
     }

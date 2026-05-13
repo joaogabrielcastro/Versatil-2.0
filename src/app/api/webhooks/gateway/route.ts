@@ -1,3 +1,4 @@
+import { logAudit } from "@/lib/audit/log";
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/json";
 import { getEnv } from "@/lib/env";
@@ -55,6 +56,15 @@ export async function POST(request: Request) {
   await getQueue("webhooks").add("gateway", parsed.data, {
     removeOnComplete: 100,
     removeOnFail: 50,
+  });
+
+  await logAudit({
+    tenantId: parsed.data.tenantId,
+    actorUserId: null,
+    action: "webhook.ingested",
+    entity: "webhook",
+    entityId: parsed.data.eventId,
+    payload: { provider: parsed.data.provider, type: parsed.data.type },
   });
 
   return NextResponse.json({ ok: true, deduped: false });

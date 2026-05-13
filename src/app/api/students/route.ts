@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
@@ -119,6 +120,14 @@ export async function POST(request: Request) {
       return [row];
     });
     await recalculateStudentStatus(tenantId, created!.id);
+    await logAudit({
+      tenantId,
+      actorUserId: session.sub,
+      action: "student.created",
+      entity: "student",
+      entityId: created!.id,
+      payload: { fullName: body.fullName },
+    });
     return NextResponse.json({ student: created }, { status: 201 });
   } catch {
     return jsonError(

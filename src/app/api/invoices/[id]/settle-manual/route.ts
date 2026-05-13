@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -78,6 +79,17 @@ export async function POST(
     });
 
     await recalculateStudentStatus(tenantId, result.studentId);
+
+    if (!result.skipped) {
+      await logAudit({
+        tenantId,
+        actorUserId: session.sub,
+        action: "invoice.settled_manual",
+        entity: "invoice",
+        entityId: invoiceId,
+        payload: { note: body.note ?? null },
+      });
+    }
 
     return NextResponse.json({
       ok: true,

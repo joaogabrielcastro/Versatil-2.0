@@ -10,28 +10,53 @@ type AccessRow = {
   createdAt: string;
 };
 
+const POLL_MS = 4000;
+
 export function AccessFeed() {
   const [events, setEvents] = useState<AccessRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const es = new EventSource("/api/access-events/stream");
-    es.onmessage = (ev) => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    async function pull() {
+      if (cancelled) return;
       try {
-        const data = JSON.parse(ev.data) as { events?: AccessRow[] };
+        const res = await fetch("/api/access-events", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (res.status === 401) {
+            setError("Sessão expirada. Recarregue e entre novamente.");
+          } else {
+            setError("Não foi possível carregar acessos.");
+          }
+          return;
+        }
+        const data = (await res.json()) as { events?: AccessRow[] };
+        if (cancelled) return;
         if (data.events) {
           setEvents(data.events);
           setError(null);
         }
       } catch {
-        setError("Falha ao interpretar evento.");
+        if (!cancelled) {
+          setError("Falha de rede ao carregar acessos.");
+        }
       }
+    }
+
+    void pull();
+    timer = setInterval(() => {
+      void pull();
+    }, POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
     };
-    es.onerror = () => {
-      setError("Conexão SSE interrompida. Recarregue a página.");
-      es.close();
-    };
-    return () => es.close();
   }, []);
 
   if (error) {

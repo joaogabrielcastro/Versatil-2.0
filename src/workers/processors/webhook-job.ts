@@ -1,3 +1,4 @@
+import { logAudit } from "@/lib/audit/log";
 import { and, eq } from "drizzle-orm";
 import {
   invoiceTimelineEvents,
@@ -12,6 +13,7 @@ export async function processWebhookJob(data: WebhookJobPayload): Promise<void> 
 
   if (type === "invoice.paid" && invoiceId) {
     let studentId: string | null = null;
+    let markedPaid = false;
     await withTenantTransaction(tenantId, async (tx) => {
       const [inv] = await tx
         .select({
@@ -44,15 +46,27 @@ export async function processWebhookJob(data: WebhookJobPayload): Promise<void> 
         type: "webhook_received",
         payload: { provider, eventId, type, raw },
       });
+      markedPaid = true;
     });
-    if (studentId) {
+    if (studentId && markedPaid) {
       await recalculateStudentStatus(tenantId, studentId);
+    }
+    if (markedPaid) {
+      await logAudit({
+        tenantId,
+        actorUserId: null,
+        action: "invoice.paid_webhook",
+        entity: "invoice",
+        entityId: invoiceId,
+        payload: { provider, eventId },
+      });
     }
     return;
   }
 
   if (type === "invoice.payment_failed" && invoiceId) {
     let studentId: string | null = null;
+    let markedFailed = false;
     await withTenantTransaction(tenantId, async (tx) => {
       const [inv] = await tx
         .select({
@@ -77,9 +91,20 @@ export async function processWebhookJob(data: WebhookJobPayload): Promise<void> 
         type: "gateway_failure",
         payload: { provider, eventId, type, raw },
       });
+      markedFailed = true;
     });
-    if (studentId) {
+    if (studentId && markedFailed) {
       await recalculateStudentStatus(tenantId, studentId);
+    }
+    if (markedFailed) {
+      await logAudit({
+        tenantId,
+        actorUserId: null,
+        action: "invoice.payment_failed_webhook",
+        entity: "invoice",
+        entityId: invoiceId,
+        payload: { provider, eventId },
+      });
     }
   }
 }

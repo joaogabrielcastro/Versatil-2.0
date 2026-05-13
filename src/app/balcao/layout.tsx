@@ -18,6 +18,15 @@ export default function BalcaoLayout({
           <Link className="text-muted-foreground hover:text-foreground" href="/balcao/importar">
             Importar
           </Link>
+          <Link className="text-muted-foreground hover:text-foreground" href="/balcao/planos">
+            Planos
+          </Link>
+          <Link
+            className="text-muted-foreground hover:text-foreground"
+            href="/balcao/configuracoes/pagamentos"
+          >
+            Pagamentos
+          </Link>
         </div>
       </nav>
       {children}
