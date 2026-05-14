@@ -1,7 +1,7 @@
 import "dotenv/config";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { hashPassword } from "../src/lib/auth/password";
-import { platformAdmins, tenantUsers, tenants } from "../src/lib/db/schema";
+import { platformAdmins, plans, tenantUsers, tenants } from "../src/lib/db/schema";
 import { withBypassRlsTransaction } from "../src/lib/db/with-tenant";
 import { getEnv } from "../src/lib/env";
 
@@ -54,6 +54,32 @@ async function main() {
       console.log(`Usuário tenant criado: ${userEmail} (senha inicial no .env ou padrão)`);
     } else {
       console.log(`Usuário tenant já existe: ${userEmail}`);
+    }
+
+    const [{ n: planCount }] = await tx
+      .select({ n: count() })
+      .from(plans)
+      .where(eq(plans.tenantId, tenantId));
+    if (Number(planCount ?? 0) === 0) {
+      await tx.insert(plans).values([
+        {
+          tenantId,
+          name: "Mensal — piloto",
+          priceCents: 9900,
+          billingInterval: "monthly",
+          active: true,
+        },
+        {
+          tenantId,
+          name: "Anual — piloto",
+          priceCents: 99900,
+          billingInterval: "yearly",
+          active: true,
+        },
+      ]);
+      console.log("Planos demo criados (Mensal / Anual).");
+    } else {
+      console.log(`Planos já existem no tenant (${planCount}), skip demo.`);
     }
 
     const [existingAdmin] = await tx

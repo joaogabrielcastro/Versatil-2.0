@@ -14,7 +14,12 @@
     "db:studio": "drizzle-kit studio",
     "db:apply": "node scripts/pre-start.mjs",
     "db:seed": "tsx scripts/seed.ts",
-    "worker": "tsx src/workers/index.ts"
+    "worker": "tsx src/workers/index.ts",
+    "pilot:infra": "docker compose up -d postgres redis",
+    "pilot:infra:down": "docker compose down",
+    "pilot:worker:docker": "docker compose --profile pilot up -d --build worker",
+    "pilot:setup": "node scripts/pilot-setup.mjs",
+    "pilot:check": "node scripts/pilot-check.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",

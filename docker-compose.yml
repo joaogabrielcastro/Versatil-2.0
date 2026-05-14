@@ -27,5 +27,37 @@ services:
       timeout: 3s
       retries: 10
 
+  # Piloto: worker BullMQ — `docker compose --profile pilot up -d`
+  worker:
+    profiles: ["pilot"]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/tecnofit
+      REDIS_URL: redis://redis:6379
+      SKIP_MIGRATIONS: "true"
+      JWT_SECRET: ${JWT_SECRET:-01234567890123456789012345678901}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-01234567890123456789012345678901}
+      CRON_SECRET: ${CRON_SECRET:-}
+      WEBHOOK_INGEST_SECRET: ${WEBHOOK_INGEST_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_URL: ${APP_URL:-}
+      PAYMENT_ENCRYPTION_KEY: ${PAYMENT_ENCRYPTION_KEY:-}
+      TURNSTILE_PUSH_URL: ${TURNSTILE_PUSH_URL:-}
+      OBSERVABILITY_SERVICE: ${OBSERVABILITY_SERVICE:-versatil-worker}
+      OBSERVABILITY_LOG_FORMAT: ${OBSERVABILITY_LOG_FORMAT:-json}
+      OBSERVABILITY_ALERT_WEBHOOK_URL: ${OBSERVABILITY_ALERT_WEBHOOK_URL:-}
+      OBSERVABILITY_ALERT_WEBHOOK_TOKEN: ${OBSERVABILITY_ALERT_WEBHOOK_TOKEN:-}
+      OBSERVABILITY_METRICS_INTERVAL_MS: ${OBSERVABILITY_METRICS_INTERVAL_MS:-60000}
+      OBSERVABILITY_ALERT_QUEUE_WAITING_THRESHOLD: ${OBSERVABILITY_ALERT_QUEUE_WAITING_THRESHOLD:-0}
+
 volumes:
   pgdata:

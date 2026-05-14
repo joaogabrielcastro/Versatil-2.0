@@ -1,0 +1,24 @@
+# Chama GET /api/cron/recalculate-students (Bearer CRON_SECRET).
+# Secrets no repositório: APP_BASE_URL (ex. https://app.exemplo.com), CRON_SECRET
+name: Cron — recalculate students
+
+on:
+  workflow_dispatch:
+  # Descomenta para correr todos os dias às 06:15 UTC (ajusta o cron):
+  # schedule:
+  #   - cron: "15 6 * * *"
+
+jobs:
+  recalculate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recalcular estados
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$SECRET" ]; then
+            echo "Defina os secrets APP_BASE_URL e CRON_SECRET no repositório."
+            exit 1
+          fi
+          curl -sS -f -H "Authorization: Bearer ${SECRET}" "${BASE%/}/api/cron/recalculate-students"
