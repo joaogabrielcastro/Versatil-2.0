@@ -3,8 +3,9 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "Tecnofit Enxuto",
-  description: "SaaS multi-tenant para gestão de academias",
+  title: "Versátil Academia",
+  description: "Gestão da academia — balcão, treinos, presença e cobrança",
+  icons: { icon: "/versatil-academia-logo.png" },
 };
 
 export default function RootLayout({
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className="light">
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>

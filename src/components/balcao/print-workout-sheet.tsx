@@ -1,4 +1,5 @@
 import type { WorkoutExercise } from "@/lib/workouts/types";
+import { BRAND } from "@/lib/brand";
 
 function formatPrintedAt(d: Date) {
   return d.toLocaleString("pt-BR", {
@@ -38,7 +39,14 @@ export function PrintWorkoutSheet({
   return (
     <article className="thermal-print" aria-label="Cupom de treino">
       <div className="thermal-print__inner">
-        <p className="thermal-print__brand">TECNOFIT · TREINO</p>
+        {/* img nativo: imprime melhor em térmicas que componentes Next/Image */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={BRAND.logoPath}
+          alt={BRAND.name}
+          className="thermal-print__logo"
+        />
+        <p className="thermal-print__brand">{BRAND.shortName.toUpperCase()} · TREINO</p>
         <p className="thermal-print__rule">================================</p>
 
         <h1 className="thermal-print__title">{workoutName}</h1>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PrintWorkoutSheet } from "@/components/balcao/print-workout-sheet";
+import { AppShellHeader } from "@/components/brand/app-shell-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { WorkoutExercise } from "@/lib/workouts/types";
@@ -130,13 +131,14 @@ export function WorkoutPrintKiosk({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <header className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">Treino do dia</h1>
-        <p className="mt-2 text-muted-foreground">
-          Escolha seu nome e imprima o treino de hoje
-          {dayLabel ? ` (${dayLabel})` : ""}
-        </p>
-      </header>
+      <AppShellHeader
+        title="Treino do dia"
+        subtitle={
+          dayLabel
+            ? `Escolha seu nome e imprima o cupom · ${dayLabel}`
+            : "Escolha seu nome e imprima o treino de hoje"
+        }
+      />
 
       {!slugFromSubdomain ? (
         <div className="mt-8 flex flex-wrap items-end gap-2">

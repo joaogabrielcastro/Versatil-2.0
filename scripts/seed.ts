@@ -15,7 +15,7 @@ import { DEFAULT_WORKOUT_PRESETS } from "../src/lib/workouts/presets";
 async function main() {
   getEnv();
   const tenantSlug = process.env.SEED_TENANT_SLUG ?? "demo";
-  const tenantName = process.env.SEED_TENANT_NAME ?? "Academia Demo";
+  const tenantName = process.env.SEED_TENANT_NAME ?? "Versátil Academia";
   const userEmail = (process.env.SEED_USER_EMAIL ?? "recep@demo.com").toLowerCase();
   const userPassword = process.env.SEED_USER_PASSWORD ?? "demo12345678";
   const platformEmail = (

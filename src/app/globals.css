@@ -14,33 +14,30 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
 }
 
 :root {
+  color-scheme: light;
   --radius: 0.5rem;
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.25 0.05 260);
-  --primary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --border: oklch(0.9 0 0);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.14 0 0);
-    --foreground: oklch(0.97 0 0);
-    --card: oklch(0.18 0 0);
-    --card-foreground: oklch(0.97 0 0);
-    --primary: oklch(0.75 0.12 260);
-    --primary-foreground: oklch(0.15 0 0);
-    --muted: oklch(0.22 0 0);
-    --muted-foreground: oklch(0.7 0 0);
-    --border: oklch(0.28 0 0);
-  }
+  /* Versátil Academia — vermelho, prata e fundo claro */
+  --brand-red: #c41e3a;
+  --brand-red-dark: #9e1830;
+  --brand-silver: #b8bcc4;
+  --background: #f4f4f5;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --primary: #c41e3a;
+  --primary-foreground: #ffffff;
+  --muted: #e8e9ec;
+  --muted-foreground: #5c5c5c;
+  --border: #d4d4d8;
+  --accent: #e8e9ec;
+  --accent-foreground: #1a1a1a;
+  --ring: #c41e3a;
 }
 
 body {
@@ -73,12 +70,22 @@ body {
   letter-spacing: 0.02em;
 }
 
+.thermal-print__logo {
+  display: block;
+  margin: 0 auto 2mm;
+  max-width: 52mm;
+  height: auto;
+  max-height: 18mm;
+  object-fit: contain;
+}
+
 .thermal-print__brand {
   margin: 0;
   text-align: center;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  color: #c41e3a;
 }
 
 .thermal-print__title {

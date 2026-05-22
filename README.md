@@ -1,6 +1,8 @@
-# Tecnofit Enxuto (Versatil)
+# Versátil Academia
 
-SaaS multi-tenant para gestão de academias: balcão, cobrança, treinos imprimíveis, presença (catraca facial), importação CSV e Stripe.
+Sistema de gestão da academia: balcão, cobrança, treinos em cupom térmico, presença (catraca facial), importação CSV e Stripe.
+
+Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil-academia-logo.png`.
 
 ## Início rápido
 

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { AppShellHeader } from "@/components/brand/app-shell-header";
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
@@ -48,14 +49,10 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Entrar</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Equipe da academia. Informe o slug do tenant (ex.:{" "}
-          <code className="rounded bg-muted px-1">demo</code>) se não estiver
-          no subdomínio.
-        </p>
-      </div>
+      <AppShellHeader
+        title="Entrar"
+        subtitle="Equipe da academia. Informe o slug (ex.: demo) se não estiver no subdomínio."
+      />
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Slug da academia</span>
