@@ -24,6 +24,9 @@ export default function HomePage() {
         <Button asChild variant="outline">
           <Link href="/balcao">Balcão</Link>
         </Button>
+        <Button asChild>
+          <Link href="/imprimir-treino?slug=demo">Imprimir treino (aluno)</Link>
+        </Button>
         <Button asChild variant="outline">
           <Link href="/admin">Admin (plataforma)</Link>
         </Button>

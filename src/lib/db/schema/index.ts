@@ -363,6 +363,68 @@ export const webhookDedupe = pgTable(
   ],
 );
 
+/** Modelos de treino da academia (pré-fixados ou criados no balcão). */
+export const workoutTemplates = pgTable(
+  "workout_templates",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    exercises: jsonb("exercises").notNull(),
+    /** Modelo padrão do sistema (seed) — pode ser duplicado/editado por aluno */
+    isPreset: boolean("is_preset").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("workout_templates_tenant_idx").on(t.tenantId),
+    index("workout_templates_tenant_active_idx").on(t.tenantId, t.active),
+  ],
+);
+
+/** Treino atribuído ao aluno (cópia de modelo ou personalizado). */
+export const studentWorkouts = pgTable(
+  "student_workouts",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    templateId: uuid("template_id").references(() => workoutTemplates.id, {
+      onDelete: "set null",
+    }),
+    name: varchar("name", { length: 255 }).notNull(),
+    exercises: jsonb("exercises").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("student_workouts_tenant_student_idx").on(t.tenantId, t.studentId),
+    index("student_workouts_student_idx").on(t.studentId),
+  ],
+);
+
 export const auditLogs = pgTable(
   "audit_logs",
   {

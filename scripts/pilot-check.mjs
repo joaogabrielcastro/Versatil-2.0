@@ -15,12 +15,7 @@ const url = `${base}/api/health`;
 
 async function main() {
   const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-  const body = (await res.json().catch(() => ({}))) as {
-    ok?: boolean;
-    database?: boolean;
-    redis?: boolean;
-    error?: string;
-  };
+  const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     console.error(`[pilot-check] HTTP ${res.status}`, body);

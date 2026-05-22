@@ -1,9 +1,16 @@
 import "dotenv/config";
 import { and, count, eq } from "drizzle-orm";
 import { hashPassword } from "../src/lib/auth/password";
-import { platformAdmins, plans, tenantUsers, tenants } from "../src/lib/db/schema";
+import {
+  platformAdmins,
+  plans,
+  tenantUsers,
+  tenants,
+  workoutTemplates,
+} from "../src/lib/db/schema";
 import { withBypassRlsTransaction } from "../src/lib/db/with-tenant";
 import { getEnv } from "../src/lib/env";
+import { DEFAULT_WORKOUT_PRESETS } from "../src/lib/workouts/presets";
 
 async function main() {
   getEnv();
@@ -80,6 +87,31 @@ async function main() {
       console.log("Planos demo criados (Mensal / Anual).");
     } else {
       console.log(`Planos já existem no tenant (${planCount}), skip demo.`);
+    }
+
+    const [{ n: templateCount }] = await tx
+      .select({ n: count() })
+      .from(workoutTemplates)
+      .where(eq(workoutTemplates.tenantId, tenantId));
+    if (Number(templateCount ?? 0) === 0) {
+      await tx.insert(workoutTemplates).values(
+        DEFAULT_WORKOUT_PRESETS.map((p) => ({
+          tenantId,
+          name: p.name,
+          description: p.description,
+          exercises: p.exercises,
+          isPreset: true,
+          active: true,
+          sortOrder: p.sortOrder,
+        })),
+      );
+      console.log(
+        `Modelos de treino pré-fixados criados (${DEFAULT_WORKOUT_PRESETS.length}).`,
+      );
+    } else {
+      console.log(
+        `Modelos de treino já existem no tenant (${templateCount}), skip presets.`,
+      );
     }
 
     const [existingAdmin] = await tx

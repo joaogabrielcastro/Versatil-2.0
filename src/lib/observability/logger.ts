@@ -40,7 +40,7 @@ function sanitizeFields(fields?: LogFields): LogFields | undefined {
   return out;
 }
 
-function useJson(): boolean {
+function jsonLoggingEnabled(): boolean {
   const fmt = process.env.OBSERVABILITY_LOG_FORMAT;
   if (fmt === "text") return false;
   if (fmt === "json") return true;
@@ -60,7 +60,7 @@ function baseRecord(level: string, msg: string, fields?: LogFields) {
 
 function emit(level: "info" | "warn" | "error", msg: string, fields?: LogFields) {
   const record = baseRecord(level, msg, fields);
-  if (useJson()) {
+  if (jsonLoggingEnabled()) {
     const line = JSON.stringify(record);
     if (level === "error") {
       console.error(line);
