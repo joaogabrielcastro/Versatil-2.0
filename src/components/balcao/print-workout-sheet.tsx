@@ -1,16 +1,6 @@
 import type { WorkoutExercise } from "@/lib/workouts/types";
 import { BRAND } from "@/lib/brand";
-
-function formatPrintedAt(d: Date) {
-  return d.toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDateTimeBr } from "@/lib/dates/br";
 
 function exerciseDetail(ex: WorkoutExercise): string {
   const parts: string[] = [];
@@ -59,7 +49,7 @@ export function PrintWorkoutSheet({
           <span className="thermal-print__label">CPF:</span> {studentCpf}
         </p>
         <p className="thermal-print__line thermal-print__muted">
-          {formatPrintedAt(printedAt)}
+          {formatDateTimeBr(printedAt)}
         </p>
 
         {notes ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateTimeBr } from "@/lib/dates/br";
 
 type AccessRow = {
   id: string;
@@ -89,7 +90,7 @@ export function AccessFeed() {
             ) : null}
           </span>
           <span className="font-mono text-xs text-muted-foreground">
-            {new Date(e.createdAt).toLocaleString("pt-BR")}
+            {formatDateTimeBr(e.createdAt)}
           </span>
         </li>
       ))}

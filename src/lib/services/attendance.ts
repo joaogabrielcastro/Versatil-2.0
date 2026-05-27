@@ -1,13 +1,12 @@
 import "server-only";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { accessEvents, students } from "@/lib/db/schema";
+import { formatIsoDateBr, toIsoDateInTz } from "@/lib/dates/br";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
-
-const TZ = "America/Sao_Paulo";
 
 /** Data civil no fuso da academia (YYYY-MM-DD). */
 export function toAttendanceDate(d: Date): string {
-  return d.toLocaleDateString("en-CA", { timeZone: TZ });
+  return toIsoDateInTz(d);
 }
 
 export function parseAttendanceDate(dateStr: string): Date | null {

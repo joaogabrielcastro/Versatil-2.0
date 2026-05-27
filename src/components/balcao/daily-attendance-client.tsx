@@ -4,7 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { BrDateInput } from "@/components/ui/br-date-input";
+import {
+  formatIsoDateBr,
+  formatTimeBr,
+  parseDateBr,
+  toIsoDateInTz,
+} from "@/lib/dates/br";
 
 type Attendee = {
   studentId: string;
@@ -12,10 +18,6 @@ type Attendee = {
   visits: number;
   lastAt: string;
 };
-
-function todayIso() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-}
 
 async function fetchDaily(date: string) {
   const res = await fetch(`/api/attendance/daily?date=${date}`, {
@@ -31,25 +33,42 @@ async function fetchDaily(date: string) {
 }
 
 export function DailyAttendanceClient() {
-  const [date, setDate] = useState(todayIso());
+  const todayIso = toIsoDateInTz();
+  const [dateInput, setDateInput] = useState(formatIsoDateBr(todayIso));
+  const [queryDate, setQueryDate] = useState(todayIso);
+
   const q = useQuery({
-    queryKey: ["attendance-daily", date],
-    queryFn: () => fetchDaily(date),
+    queryKey: ["attendance-daily", queryDate],
+    queryFn: () => fetchDaily(queryDate),
   });
+
+  function applyDate() {
+    const parsed = parseDateBr(dateInput);
+    if (!parsed) return;
+    const iso = toIsoDateInTz(parsed);
+    setQueryDate(iso);
+    setDateInput(formatIsoDateBr(iso));
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          Data
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-auto"
-          />
+          Data (dd/mm/aaaa)
+          <BrDateInput value={dateInput} onChange={setDateInput} />
         </label>
-        <Button type="button" variant="outline" onClick={() => setDate(todayIso())}>
+        <Button type="button" variant="outline" onClick={applyDate}>
+          Buscar
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            const iso = toIsoDateInTz();
+            setQueryDate(iso);
+            setDateInput(formatIsoDateBr(iso));
+          }}
+        >
           Hoje
         </Button>
       </div>
@@ -61,11 +80,13 @@ export function DailyAttendanceClient() {
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            {q.data!.totalStudents} aluno(s) · {q.data!.totalVisits} entrada(s) — registro
-            automático pela catraca / reconhecimento facial.
+            {formatIsoDateBr(q.data!.date)} — {q.data!.totalStudents} aluno(s) ·{" "}
+            {q.data!.totalVisits} entrada(s) (catraca / facial).
           </p>
           {q.data!.attendees.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Ninguém registrou presença neste dia.</p>
+            <p className="text-sm text-muted-foreground">
+              Ninguém registrou presença neste dia.
+            </p>
           ) : (
             <ul className="divide-y divide-border rounded-lg border border-border">
               {q.data!.attendees.map((a) => (
@@ -80,11 +101,7 @@ export function DailyAttendanceClient() {
                     {a.fullName}
                   </Link>
                   <span className="text-muted-foreground">
-                    {a.visits} entrada(s) · última{" "}
-                    {new Date(a.lastAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {a.visits} entrada(s) · última {formatTimeBr(a.lastAt)}
                   </span>
                 </li>
               ))}

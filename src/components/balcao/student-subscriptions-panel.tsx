@@ -3,7 +3,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { BrDateInput } from "@/components/ui/br-date-input";
+import { formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
+import { billingIntervalLabel } from "@/lib/billing/interval-labels";
 
 type Plan = {
   id: string;
@@ -58,17 +60,32 @@ export function StudentSubscriptionsPanel({
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   async function createSub(e: React.FormEvent) {
     e.preventDefault();
+    setDateError(null);
     if (!planId || !startsAt) return;
+    const start = parseDateBr(startsAt);
+    if (!start) {
+      setDateError("Início inválido. Use dd/mm/aaaa HH:mm.");
+      return;
+    }
+    let end: Date | null = null;
+    if (endsAt.trim()) {
+      end = parseDateBr(endsAt);
+      if (!end) {
+        setDateError("Término inválido. Use dd/mm/aaaa HH:mm.");
+        return;
+      }
+    }
     setBusy(true);
     try {
       const body: Record<string, string> = {
         planId,
-        startsAt: new Date(startsAt).toISOString(),
+        startsAt: start.toISOString(),
       };
-      if (endsAt) body.endsAt = new Date(endsAt).toISOString();
+      if (end) body.endsAt = end.toISOString();
       const res = await fetch(`/api/students/${studentId}/subscriptions`, {
         method: "POST",
         credentials: "include",
@@ -123,22 +140,25 @@ export function StudentSubscriptionsPanel({
                     style: "currency",
                     currency: "BRL",
                   })}{" "}
-                  ({p.billingInterval})
+                  ({billingIntervalLabel(p.billingInterval)})
                 </option>
               ))}
           </select>
-          <Input
-            type="datetime-local"
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-            required
-          />
-          <Input
-            type="datetime-local"
-            placeholder="Término (opcional)"
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.target.value)}
-          />
+          <label className="text-xs text-muted-foreground">
+            Início (dd/mm/aaaa HH:mm)
+            <BrDateInput
+              withTime
+              className="mt-1"
+              value={startsAt}
+              onChange={setStartsAt}
+              required
+            />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Término opcional (dd/mm/aaaa HH:mm)
+            <BrDateInput withTime className="mt-1" value={endsAt} onChange={setEndsAt} />
+          </label>
+          {dateError ? <p className="text-sm text-red-600">{dateError}</p> : null}
           <Button type="submit" size="sm" disabled={busy || plans.length === 0}>
             Associar plano
           </Button>
@@ -157,10 +177,8 @@ export function StudentSubscriptionsPanel({
               >
                 <div className="font-medium">{plan.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(s.startsAt).toLocaleString("pt-BR")}
-                  {s.endsAt
-                    ? ` → ${new Date(s.endsAt).toLocaleString("pt-BR")}`
-                    : ""}
+                  {formatDateTimeBr(s.startsAt)}
+                  {s.endsAt ? ` → ${formatDateTimeBr(s.endsAt)}` : ""}
                 </div>
                 <div className="text-xs capitalize">
                   {s.active ? "ativa" : "inativa"}

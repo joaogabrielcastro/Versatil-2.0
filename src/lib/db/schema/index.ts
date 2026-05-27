@@ -39,6 +39,7 @@ export const settlementSourceEnum = pgEnum("settlement_source", [
 
 export const billingIntervalEnum = pgEnum("billing_interval", [
   "monthly",
+  "semesterly",
   "yearly",
 ]);
 

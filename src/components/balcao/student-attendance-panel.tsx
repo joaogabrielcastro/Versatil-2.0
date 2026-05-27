@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { formatIsoDateBr, formatTimeBr } from "@/lib/dates/br";
 
 type AttendanceDay = {
   date: string;
@@ -8,11 +9,6 @@ type AttendanceDay = {
   sources: string[];
   lastAt: string;
 };
-
-function formatDateBr(isoDate: string) {
-  const [y, m, d] = isoDate.split("-");
-  return `${d}/${m}/${y}`;
-}
 
 function sourceLabel(s: string) {
   if (s === "catraca") return "Catraca / facial";
@@ -52,10 +48,10 @@ export function StudentAttendancePanel({ studentId }: { studentId: string }) {
       <p className="text-sm text-muted-foreground">
         {cameToday ? (
           <span className="text-green-700 dark:text-green-400">
-            Entrada registrada hoje (catraca / reconhecimento facial).
+            Entrada registrada hoje ({formatIsoDateBr(today)}) — catraca / facial.
           </span>
         ) : (
-          <span>Hoje ainda sem entrada registrada na catraca.</span>
+          <span>Hoje ({formatIsoDateBr(today)}) ainda sem entrada na catraca.</span>
         )}
       </p>
       <p className="text-xs text-muted-foreground">
@@ -79,16 +75,13 @@ export function StudentAttendancePanel({ studentId }: { studentId: string }) {
             <tbody>
               {days.map((d) => (
                 <tr key={d.date} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">{formatDateBr(d.date)}</td>
+                  <td className="px-3 py-2">{formatIsoDateBr(d.date)}</td>
                   <td className="px-3 py-2">{d.visits}</td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {d.sources.map(sourceLabel).join(", ")}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {new Date(d.lastAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatTimeBr(d.lastAt)}
                   </td>
                 </tr>
               ))}

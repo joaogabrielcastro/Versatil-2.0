@@ -27,6 +27,8 @@ npm run worker   # filas BullMQ
 
 Guia completo do piloto: **[PILOT.md](./PILOT.md)**.
 
+Questionário para reunião com o cliente (cobrança, catraca, nuvem): **[QUESTIONARIO-CLIENTE.md](./QUESTIONARIO-CLIENTE.md)**.
+
 ## Scripts úteis
 
 | Script | Descrição |

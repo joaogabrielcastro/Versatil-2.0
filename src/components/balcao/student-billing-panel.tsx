@@ -3,7 +3,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BrDateInput } from "@/components/ui/br-date-input";
 import { Input } from "@/components/ui/input";
+import { formatDateBr, formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
 
 type Invoice = {
   id: string;
@@ -40,11 +42,18 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
 
   const [amount, setAmount] = useState("");
   const [due, setDue] = useState("");
+  const [dueError, setDueError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
+    setDueError(null);
+    const dueDate = parseDateBr(due);
+    if (!dueDate) {
+      setDueError("Vencimento inválido. Use dd/mm/aaaa ou dd/mm/aaaa HH:mm.");
+      return;
+    }
     setBusy(true);
     try {
       const cents = Math.round(Number(amount.replace(",", ".")) * 100);
@@ -56,7 +65,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
         body: JSON.stringify({
           studentId,
           amountCents: cents,
-          dueAt: new Date(due).toISOString(),
+          dueAt: dueDate.toISOString(),
         }),
       });
       if (!res.ok) return;
@@ -131,7 +140,11 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
-          <Input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Vencimento
+            <BrDateInput withTime value={due} onChange={setDue} required />
+          </label>
+          {dueError ? <p className="text-sm text-red-600">{dueError}</p> : null}
           <Button type="submit" size="sm" disabled={busy || !due}>
             Criar fatura em aberto
           </Button>
@@ -158,6 +171,10 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                   <span className="ml-2 capitalize text-muted-foreground">
                     {inv.status}
                   </span>
+                  <div className="text-xs text-muted-foreground">
+                    Venc.: {formatDateBr(inv.dueAt)}
+                    {inv.paidAt ? ` · Pago: ${formatDateBr(inv.paidAt)}` : ""}
+                  </div>
                 </div>
                 {inv.status === "open" ? (
                   <div className="flex flex-wrap gap-2">
@@ -203,7 +220,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
               <li key={t.id} className="rounded-md border border-border/80 p-2">
                 <div className="font-medium">{t.type}</div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(t.createdAt).toLocaleString("pt-BR")}
+                  {formatDateTimeBr(t.createdAt)}
                 </div>
                 <pre className="mt-1 max-h-24 overflow-auto text-xs">
                   {JSON.stringify(t.payload, null, 2)}

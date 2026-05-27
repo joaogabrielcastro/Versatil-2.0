@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 const createSchema = z.object({
   name: z.string().min(2).max(255),
   priceCents: z.number().int().nonnegative(),
-  billingInterval: z.enum(["monthly", "yearly"]).optional(),
+  billingInterval: z.enum(["monthly", "semesterly", "yearly"]).optional(),
 });
 
 export async function GET() {

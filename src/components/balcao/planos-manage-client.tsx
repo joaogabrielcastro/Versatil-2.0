@@ -4,6 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  type BillingInterval,
+  billingIntervalLabel,
+} from "@/lib/billing/interval-labels";
 
 type Plan = {
   id: string;
@@ -25,7 +29,7 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
   const q = useQuery({ queryKey: ["plans"], queryFn: fetchPlans });
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [busy, setBusy] = useState(false);
 
   async function create(e: React.FormEvent) {
@@ -102,10 +106,11 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
               value={interval}
               onChange={(e) =>
-                setInterval(e.target.value as "monthly" | "yearly")
+                setInterval(e.target.value as BillingInterval)
               }
             >
               <option value="monthly">Mensal</option>
+              <option value="semesterly">Semestral</option>
               <option value="yearly">Anual</option>
             </select>
             <Button type="submit" size="sm" disabled={busy}>
@@ -138,8 +143,9 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                       currency: "BRL",
                     })}
                   </span>
-                  <span className="ml-2 text-xs capitalize text-muted-foreground">
-                    {p.billingInterval} · {p.active ? "ativo" : "inativo"}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {billingIntervalLabel(p.billingInterval)} ·{" "}
+                    {p.active ? "ativo" : "inativo"}
                   </span>
                 </div>
                 {isAdmin ? (
