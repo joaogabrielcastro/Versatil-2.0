@@ -27,6 +27,9 @@ export default function BalcaoLayout({
             <Link className={navLink} href="/balcao/presenca">
               Presença
             </Link>
+            <Link className={navLink} href="/balcao/relatorios">
+              Relatórios
+            </Link>
             <Link className={navLink} href="/imprimir-treino" target="_blank">
               Terminal aluno
             </Link>

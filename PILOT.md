@@ -93,6 +93,7 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 | Planos / assinaturas | `/balcao/planos` e ficha do aluno |
 | Modelos de treino | `/balcao/treinos` (pré-fixados, imprimíveis) |
 | Presença diária | `/balcao/presenca` e ficha do aluno (automático via catraca / facial) |
+| Relatórios | `/balcao/relatorios` — financeiro + presença por período, export CSV |
 | Terminal do aluno | `/imprimir-treino?slug=demo` — cupom 80mm para impressora térmica |
 | Import CSV | `/balcao/importar` + worker |
 | Webhook gateway | `POST /api/webhooks/gateway` com Bearer `WEBHOOK_INGEST_SECRET` |

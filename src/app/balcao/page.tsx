@@ -66,6 +66,9 @@ export default async function BalcaoDashboardPage() {
             <Link className="underline underline-offset-4" href="/balcao/importar">
               Importar CSV
             </Link>
+            <Link className="underline underline-offset-4" href="/balcao/relatorios">
+              Relatórios
+            </Link>
           </div>
         </div>
       </section>
