@@ -29,6 +29,8 @@ Guia completo do piloto: **[PILOT.md](./PILOT.md)**.
 
 Questionário para reunião com o cliente (cobrança, catraca, nuvem): **[QUESTIONARIO-CLIENTE.md](./QUESTIONARIO-CLIENTE.md)**.
 
+Cobrança Plano C (balcão + Stone manual) e APIs Stone/cataca: **[INTEGRACOES.md](./INTEGRACOES.md)**.
+
 ## Scripts úteis
 
 | Script | Descrição |

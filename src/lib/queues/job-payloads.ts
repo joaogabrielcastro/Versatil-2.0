@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const webhookJobSchema = z.object({
   tenantId: z.string().uuid(),
-  provider: z.enum(["stripe", "asaas"]),
+  provider: z.enum(["stripe", "asaas", "stone"]),
   eventId: z.string().min(1).max(255),
   type: z.string().min(1).max(128),
   invoiceId: z.string().uuid().optional(),

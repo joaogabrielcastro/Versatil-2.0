@@ -9,11 +9,13 @@ import {
   invoices,
 } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { MANUAL_PAYMENT_METHODS } from "@/lib/billing/payment-methods";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 
 export const dynamic = "force-dynamic";
 
 const settleSchema = z.object({
+  paymentMethod: z.enum(MANUAL_PAYMENT_METHODS).optional(),
   note: z.string().max(500).optional(),
 });
 
@@ -72,7 +74,11 @@ export async function POST(
         tenantId,
         invoiceId,
         type: "manual_payment",
-        payload: { note: body.note ?? null, by: session.sub },
+        payload: {
+          paymentMethod: body.paymentMethod ?? null,
+          note: body.note ?? null,
+          by: session.sub,
+        },
       });
 
       return { skipped: false as const, studentId: inv.studentId };
@@ -87,7 +93,10 @@ export async function POST(
         action: "invoice.settled_manual",
         entity: "invoice",
         entityId: invoiceId,
-        payload: { note: body.note ?? null },
+        payload: {
+          paymentMethod: body.paymentMethod ?? null,
+          note: body.note ?? null,
+        },
       });
     }
 

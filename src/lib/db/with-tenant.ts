@@ -7,7 +7,7 @@ import type * as schema from "./schema";
 
 type Schema = typeof schema;
 type TFullSchema = ExtractTablesWithRelations<Schema>;
-type Transaction = PgTransaction<
+export type DbTransaction = PgTransaction<
   PostgresJsQueryResultHKT,
   Schema,
   TFullSchema
@@ -16,7 +16,7 @@ type Transaction = PgTransaction<
 /** Contexto de tenant injetado na sessão PostgreSQL (RLS). */
 export async function withTenantTransaction<T>(
   tenantId: string,
-  fn: (tx: Transaction) => Promise<T>,
+  fn: (tx: DbTransaction) => Promise<T>,
 ): Promise<T> {
   const db = getDb();
   return db.transaction(async (tx) => {
@@ -28,7 +28,7 @@ export async function withTenantTransaction<T>(
 
 /** Operações internas de plataforma (super admin) — usar apenas em código confiável. */
 export async function withBypassRlsTransaction<T>(
-  fn: (tx: Transaction) => Promise<T>,
+  fn: (tx: DbTransaction) => Promise<T>,
 ): Promise<T> {
   const db = getDb();
   return db.transaction(async (tx) => {

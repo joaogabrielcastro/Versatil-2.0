@@ -1,0 +1,23 @@
+# Gera faturas de assinaturas ativas (Plano C).
+# Secrets: APP_BASE_URL, CRON_SECRET
+name: Cron — generate invoices
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 5 * * *"
+
+jobs:
+  generate-invoices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gerar faturas do período
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$SECRET" ]; then
+            echo "Defina APP_BASE_URL e CRON_SECRET nos secrets do repositório."
+            exit 1
+          fi
+          curl -sS -f -H "Authorization: Bearer ${SECRET}" "${BASE%/}/api/cron/generate-invoices"

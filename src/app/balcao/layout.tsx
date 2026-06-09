@@ -39,8 +39,11 @@ export default function BalcaoLayout({
             <Link className={navLink} href="/balcao/planos">
               Planos
             </Link>
-            <Link className={navLink} href="/balcao/configuracoes/pagamentos">
-              Pagamentos
+            <Link className={navLink} href="/balcao/cobranca">
+              Cobrança
+            </Link>
+            <Link className={navLink} href="/balcao/configuracoes/integracoes">
+              Integrações
             </Link>
           </div>
         </div>

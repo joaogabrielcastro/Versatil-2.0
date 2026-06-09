@@ -5,6 +5,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrDateInput } from "@/components/ui/br-date-input";
 import { Input } from "@/components/ui/input";
+import {
+  MANUAL_PAYMENT_LABELS,
+  MANUAL_PAYMENT_METHODS,
+  type ManualPaymentMethod,
+} from "@/lib/billing/payment-methods";
 import { formatDateBr, formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
 
 type Invoice = {
@@ -45,6 +50,8 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
   const [dueError, setDueError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [paymentMethod, setPaymentMethod] =
+    useState<ManualPaymentMethod>("stone_card");
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
@@ -77,31 +84,6 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
     }
   }
 
-  async function stripeCheckout(invoiceId: string) {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/billing/stripe/checkout", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId }),
-      });
-      const j = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        url?: string | null;
-      };
-      if (!res.ok) {
-        window.alert(j.error ?? "Não foi possível iniciar o checkout.");
-        return;
-      }
-      if (j.url) {
-        window.location.href = j.url;
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function settle(id: string) {
     setBusy(true);
     try {
@@ -109,10 +91,14 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: note || undefined }),
+        body: JSON.stringify({
+          paymentMethod,
+          note: note || undefined,
+        }),
       });
       if (!res.ok) return;
       await qc.invalidateQueries({ queryKey: ["billing", studentId] });
+      await qc.invalidateQueries({ queryKey: ["open-invoices"] });
     } finally {
       setBusy(false);
     }
@@ -130,7 +116,11 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <div>
-        <h3 className="text-sm font-medium">Nova fatura</h3>
+        <h3 className="text-sm font-medium">Nova fatura avulsa</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Faturas de plano são geradas automaticamente ao associar assinatura ou
+          pelo cron / botão em Cobrança.
+        </p>
         <form
           onSubmit={(e) => void createInvoice(e)}
           className="mt-2 flex flex-col gap-2"
@@ -177,26 +167,15 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                   </div>
                 </div>
                 {inv.status === "open" ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="default"
-                      disabled={busy}
-                      onClick={() => void stripeCheckout(inv.id)}
-                    >
-                      Pagar (Stripe)
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void settle(inv.id)}
-                    >
-                      Liquidar (balcão)
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    disabled={busy}
+                    onClick={() => void settle(inv.id)}
+                  >
+                    Registrar pagamento
+                  </Button>
                 ) : null}
               </li>
             ))
@@ -204,10 +183,24 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
         </ul>
       </div>
       <div>
-        <h3 className="text-sm font-medium">Nota na liquidação manual</h3>
+        <h3 className="text-sm font-medium">Forma de pagamento (balcão)</h3>
+        <select
+          className="mt-2 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+          value={paymentMethod}
+          onChange={(e) =>
+            setPaymentMethod(e.target.value as ManualPaymentMethod)
+          }
+        >
+          {MANUAL_PAYMENT_METHODS.map((m) => (
+            <option key={m} value={m}>
+              {MANUAL_PAYMENT_LABELS[m]}
+            </option>
+          ))}
+        </select>
+        <h3 className="mt-4 text-sm font-medium">Nota opcional</h3>
         <Input
           className="mt-2"
-          placeholder="Opcional"
+          placeholder="Ex.: comprovante Stone #123"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />

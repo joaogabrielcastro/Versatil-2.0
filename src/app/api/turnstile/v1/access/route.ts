@@ -47,6 +47,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dispositivo não autorizado." }, { status: 401 });
   }
 
+  await withBypassRlsTransaction(async (tx) => {
+    await tx
+      .update(turnstileDevices)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(turnstileDevices.id, device.id));
+  });
+
   let parsed: z.infer<typeof bodySchema>;
   try {
     parsed = bodySchema.parse(await request.json());

@@ -59,13 +59,20 @@ docker compose --profile pilot up -d --build worker
 
 O worker na rede Docker usa `REDIS_URL=redis://redis:6379` e `DATABASE_URL` com host `postgres` (definidos no `docker-compose.yml`).
 
-## 5. Stripe (cobrança online)
+## 5. Cobrança (Plano C — balcão + Stone manual)
+
+- **Balcão → Cobrança:** faturas em aberto e registro de pagamento (dinheiro, Pix, cartão Stone).
+- Ao associar plano ao aluno, a **primeira fatura** é criada automaticamente.
+- Cron (ou botão no balcão): `GET /api/cron/generate-invoices` com `Authorization: Bearer CRON_SECRET`.
+- Integrações Stone + catraca: **[INTEGRACOES.md](./INTEGRACOES.md)**.
+
+## 6. Stripe (opcional — não usado no Plano C)
 
 1. `STRIPE_SECRET_KEY` e/ou credenciais em **Balcão → Pagamentos**.
 2. `STRIPE_WEBHOOK_SECRET` + webhook Stripe para `POST …/api/webhooks/stripe` com evento **checkout.session.completed**.
 3. `APP_URL` = URL pública do site (redirects do checkout).
 
-## 6. Cron (recalcular estados dos alunos)
+## 7. Cron (recalcular estados dos alunos)
 
 1. Define `CRON_SECRET` no `.env`.
 2. Agenda um HTTP GET para `/api/cron/recalculate-students` com header  
@@ -83,13 +90,14 @@ $secret = "SEU_CRON_SECRET"
 Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authorization = "Bearer $secret" }
 ```
 
-## 7. Checklist funcional
+## 8. Checklist funcional
 
 | Item | Onde |
 |------|------|
 | Login balcão | `/login` (slug `demo` se não usares subdomínio) |
 | Painel | `/balcao` |
-| Alunos / fatura / Stripe | Balcão |
+| Cobrança (faturas + pagamento balcão) | `/balcao/cobranca` |
+| Alunos / fatura por aluno | Balcão → ficha do aluno |
 | Planos / assinaturas | `/balcao/planos` e ficha do aluno |
 | Modelos de treino | `/balcao/treinos` (pré-fixados, imprimíveis) |
 | Presença diária | `/balcao/presenca` e ficha do aluno (automático via catraca / facial) |
@@ -97,8 +105,9 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 | Terminal do aluno | `/imprimir-treino?slug=demo` — cupom 80mm para impressora térmica |
 | Import CSV | `/balcao/importar` + worker |
 | Webhook gateway | `POST /api/webhooks/gateway` com Bearer `WEBHOOK_INGEST_SECRET` |
-| Catraca | `POST /api/turnstile/v1/access` |
+| Catraca | `POST /api/turnstile/v1/access` — ver INTEGRACOES.md |
+| Stone (webhook Fase 2) | `POST /api/webhooks/stone` |
 
-## 8. Produção (`npm run start`)
+## 9. Produção (`npm run start`)
 
 Garante `SKIP_MIGRATIONS` **não** definido como `true` no processo do Next se quiseres migrações no arranque (`scripts/pre-start.mjs`). O worker deve usar `SKIP_MIGRATIONS=true` (já no Compose).

@@ -24,6 +24,8 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(8).optional(),
   /** Bearer para POST /api/webhooks/gateway (ingestão idempotente → fila) */
   WEBHOOK_INGEST_SECRET: z.string().min(16).optional(),
+  /** Bearer para POST /api/webhooks/stone (quando integração Stone estiver ativa) */
+  STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
   /** 64 hex chars (32 bytes) — preferencial; senão deriva de JWT_SECRET (menos seguro) */
   PAYMENT_ENCRYPTION_KEY: z
     .string()

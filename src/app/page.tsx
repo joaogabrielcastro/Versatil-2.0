@@ -12,22 +12,42 @@ export default function HomePage() {
           {BRAND.name}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Sistema de gestão — balcão, treinos, presença na catraca e cobrança.
+          Sistema de gestão — treinos, presença na catraca e cobrança.
         </p>
       </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button asChild>
-          <Link href="/login">Login equipe</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/imprimir-treino?slug=demo">Terminal do aluno</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/balcao">Balcão</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/admin">Admin plataforma</Link>
-        </Button>
+
+      <div className="grid w-full max-w-md gap-4 text-sm">
+        <div className="rounded-lg border border-border bg-card p-4 text-left">
+          <p className="font-medium text-foreground">Equipe da academia</p>
+          <p className="mt-1 text-muted-foreground">
+            Faça login com e-mail e senha. Depois do login você entra no{" "}
+            <strong className="font-medium text-foreground">painel do balcão</strong>{" "}
+            (alunos, cobrança, treinos).
+          </p>
+          <Button asChild className="mt-3 w-full sm:w-auto">
+            <Link href="/login">Entrar — equipe</Link>
+          </Button>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-4 text-left">
+          <p className="font-medium text-foreground">Aluno</p>
+          <p className="mt-1 text-muted-foreground">
+            Terminal para imprimir o treino do dia (não precisa de login).
+          </p>
+          <Button asChild variant="outline" className="mt-3 w-full sm:w-auto">
+            <Link href="/imprimir-treino?slug=demo">Terminal do aluno</Link>
+          </Button>
+        </div>
+
+        <div className="rounded-lg border border-dashed border-border p-4 text-left">
+          <p className="font-medium text-foreground">Administração da plataforma</p>
+          <p className="mt-1 text-muted-foreground">
+            Super admin — gestão de academias (não é o balcão da recepção).
+          </p>
+          <Button asChild variant="ghost" size="sm" className="mt-2 px-0">
+            <Link href="/login/plataforma">Login plataforma →</Link>
+          </Button>
+        </div>
       </div>
     </main>
   );

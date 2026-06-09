@@ -6,6 +6,7 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { plans, studentSubscriptions, students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { createFirstSubscriptionInvoice } from "@/lib/services/billing/subscription-invoice";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 
 export const dynamic = "force-dynamic";
@@ -86,7 +87,7 @@ export async function POST(
   }
 
   try {
-    const [sub] = await withTenantTransaction(tenantId, async (tx) => {
+    const [sub, plan] = await withTenantTransaction(tenantId, async (tx) => {
       const [stu] = await tx
         .select({ id: students.id })
         .from(students)
@@ -96,7 +97,11 @@ export async function POST(
         throw new Error("no_student");
       }
       const [pl] = await tx
-        .select({ id: plans.id })
+        .select({
+          id: plans.id,
+          priceCents: plans.priceCents,
+          billingInterval: plans.billingInterval,
+        })
         .from(plans)
         .where(and(eq(plans.id, body.planId), eq(plans.tenantId, tenantId)))
         .limit(1);
@@ -114,10 +119,16 @@ export async function POST(
           active: true,
         })
         .returning();
-      return [row];
+      return [row, pl] as const;
     });
 
-    await recalculateStudentStatus(tenantId, studentId);
+    await createFirstSubscriptionInvoice(
+      tenantId,
+      studentId,
+      sub!.id,
+      plan!,
+      startsAt,
+    );
 
     await logAudit({
       tenantId,
