@@ -11,6 +11,11 @@ import {
   type ManualPaymentMethod,
 } from "@/lib/billing/payment-methods";
 import { formatDateBr, formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
+import {
+  invoiceStatusLabel,
+  timelineEventLabel,
+} from "@/lib/labels";
+import { manualPaymentLabel } from "@/lib/billing/payment-methods";
 
 type Invoice = {
   id: string;
@@ -158,8 +163,8 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                       currency: inv.currency,
                     })}
                   </span>
-                  <span className="ml-2 capitalize text-muted-foreground">
-                    {inv.status}
+                  <span className="ml-2 text-muted-foreground">
+                    {invoiceStatusLabel(inv.status)}
                   </span>
                   <div className="text-xs text-muted-foreground">
                     Venc.: {formatDateBr(inv.dueAt)}
@@ -211,18 +216,38 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           ) : (
             data.timeline.map((t) => (
               <li key={t.id} className="rounded-md border border-border/80 p-2">
-                <div className="font-medium">{t.type}</div>
+                <div className="font-medium">{timelineEventLabel(t.type)}</div>
                 <div className="text-xs text-muted-foreground">
                   {formatDateTimeBr(t.createdAt)}
                 </div>
-                <pre className="mt-1 max-h-24 overflow-auto text-xs">
-                  {JSON.stringify(t.payload, null, 2)}
-                </pre>
+                <TimelineDetail type={t.type} payload={t.payload} />
               </li>
             ))
           )}
         </ul>
       </div>
     </div>
+  );
+}
+
+function TimelineDetail({
+  type,
+  payload,
+}: {
+  type: string;
+  payload: unknown;
+}) {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const lines: string[] = [];
+  if (typeof p.message === "string") lines.push(p.message);
+  if (typeof p.paymentMethod === "string") {
+    lines.push(`Forma: ${manualPaymentLabel(p.paymentMethod)}`);
+  }
+  if (typeof p.note === "string" && p.note) lines.push(String(p.note));
+  if (lines.length === 0 && type === "note") return null;
+  if (lines.length === 0) return null;
+  return (
+    <p className="mt-1 text-xs text-muted-foreground">{lines.join(" · ")}</p>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { withBypassRlsTransaction } from "../src/lib/db/with-tenant";
 import { getEnv } from "../src/lib/env";
 import { DEFAULT_WORKOUT_PRESETS } from "../src/lib/workouts/presets";
+import { seedDemoData } from "./seed-demo";
 
 async function main() {
   getEnv();
@@ -71,15 +72,15 @@ async function main() {
       await tx.insert(plans).values([
         {
           tenantId,
-          name: "Mensal — piloto",
-          priceCents: 9900,
+          name: "Mensal",
+          priceCents: 12900,
           billingInterval: "monthly",
           active: true,
         },
         {
           tenantId,
-          name: "Anual — piloto",
-          priceCents: 99900,
+          name: "Anual",
+          priceCents: 129000,
           billingInterval: "yearly",
           active: true,
         },
@@ -129,6 +130,8 @@ async function main() {
     } else {
       console.log(`Super admin já existe: ${platformEmail}`);
     }
+
+    await seedDemoData(tenantId);
   });
 }
 

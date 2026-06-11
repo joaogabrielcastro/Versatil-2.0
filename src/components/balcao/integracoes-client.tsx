@@ -58,9 +58,20 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
   const base = appUrl.replace(/\/$/, "");
 
   return (
-    <div className="grid gap-10 lg:grid-cols-2">
+    <div className="space-y-8">
+      <div className="rounded-lg border border-border bg-card p-4 text-sm">
+        <p className="font-medium text-foreground">Como funciona na prática</p>
+        <p className="mt-2 text-muted-foreground">
+          A catraca consulta o Versátil após reconhecer o aluno. Se estiver{" "}
+          <strong className="text-emerald-700">ativo</strong> e em dia, libera a
+          entrada. Se estiver <strong className="text-red-700">inadimplente</strong>,
+          bloqueia. Os pagamentos Stone podem ser registrados no balcão hoje; a
+          integração automática via webhook fica preparada abaixo.
+        </p>
+      </div>
+      <div className="grid gap-10 lg:grid-cols-2">
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Catraca (API)</h2>
+        <h2 className="text-lg font-semibold">Catraca</h2>
         <p className="text-sm text-muted-foreground">
           O equipamento ou gateway local chama esta URL após reconhecer o rosto do
           aluno. O sistema responde se a catraca deve abrir.
@@ -122,7 +133,7 @@ Body: { "studentId": "<uuid do aluno>" }
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Stone (webhook — Fase 2)</h2>
+        <h2 className="text-lg font-semibold">Stone — cobrança automática</h2>
         <p className="text-sm text-muted-foreground">
           Quando tiver acesso à Stone, configure o webhook para baixar faturas
           automaticamente. Hoje use o balcão para registrar pagamentos manualmente.
@@ -147,6 +158,7 @@ Body: {
           Documentação completa: <strong>INTEGRACOES.md</strong> na raiz do projeto.
         </p>
       </section>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NewStudentForm } from "@/components/balcao/new-student-form";
+import { StudentStatusBadge } from "@/components/ui/status-badge";
+import { formatCpf } from "@/lib/labels";
 
 type StudentRow = {
   id: string;
@@ -103,8 +105,10 @@ export default function AlunosPage() {
                           {r.fullName}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">{r.cpf}</td>
-                      <td className="px-3 py-2 capitalize">{r.status}</td>
+                      <td className="px-3 py-2 text-xs">{formatCpf(r.cpf)}</td>
+                      <td className="px-3 py-2">
+                        <StudentStatusBadge status={r.status} />
+                      </td>
                     </tr>
                   ))
                 )}

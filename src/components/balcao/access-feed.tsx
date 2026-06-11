@@ -6,12 +6,20 @@ import { formatDateTimeBr } from "@/lib/dates/br";
 type AccessRow = {
   id: string;
   studentId: string | null;
+  studentName: string | null;
   allowed: boolean;
   reason: string | null;
   createdAt: string;
 };
 
 const POLL_MS = 4000;
+
+function reasonLabel(reason: string | null): string {
+  if (!reason) return "";
+  if (reason === "inadimplente") return "Inadimplente";
+  if (reason === "inativo") return "Inativo";
+  return reason;
+}
 
 export function AccessFeed() {
   const [events, setEvents] = useState<AccessRow[]>([]);
@@ -67,29 +75,36 @@ export function AccessFeed() {
   if (events.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Aguardando eventos de catraca…
+        Nenhum acesso registrado ainda. Quando a catraca liberar um aluno, aparece aqui.
       </p>
     );
   }
 
   return (
-    <ul className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border p-3 text-sm">
+    <ul className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-card p-3 text-sm">
       {events.map((e) => (
         <li
           key={e.id}
           className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-2 last:border-0"
         >
           <span>
+            <span className="font-medium text-foreground">
+              {e.studentName ?? "Desconhecido"}
+            </span>
+            {" — "}
             {e.allowed ? (
-              <span className="text-green-700 dark:text-green-400">Liberado</span>
+              <span className="text-emerald-700">Liberado</span>
             ) : (
-              <span className="text-red-700 dark:text-red-400">Bloqueado</span>
+              <span className="text-red-700">Bloqueado</span>
             )}
             {e.reason ? (
-              <span className="text-muted-foreground"> · {e.reason}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {reasonLabel(e.reason)}
+              </span>
             ) : null}
           </span>
-          <span className="font-mono text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {formatDateTimeBr(e.createdAt)}
           </span>
         </li>

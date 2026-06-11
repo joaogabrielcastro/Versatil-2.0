@@ -6,6 +6,8 @@ import { StudentBillingPanel } from "@/components/balcao/student-billing-panel";
 import { StudentSubscriptionsPanel } from "@/components/balcao/student-subscriptions-panel";
 import { StudentWorkoutsPanel } from "@/components/balcao/student-workouts-panel";
 import { Button } from "@/components/ui/button";
+import { StudentStatusBadge } from "@/components/ui/status-badge";
+import { formatCpf } from "@/lib/labels";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
@@ -47,10 +49,10 @@ export default async function AlunoDetalhePage({
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">
             {student.fullName}
           </h1>
-          <p className="mt-1 font-mono text-sm text-muted-foreground">{student.cpf}</p>
-          <p className="mt-2 text-sm capitalize">
-            Status: <span className="font-medium">{student.status}</span>
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatCpf(student.cpf)}</p>
+          <div className="mt-3">
+            <StudentStatusBadge status={student.status} />
+          </div>
         </div>
       </div>
 

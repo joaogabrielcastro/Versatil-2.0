@@ -1,6 +1,6 @@
 # Versátil Academia
 
-Sistema de gestão da academia: balcão, cobrança, treinos em cupom térmico, presença (catraca facial), importação CSV e Stripe.
+Sistema de gestão da academia: balcão, cobrança na recepção, treinos em cupom térmico, presença (catraca facial) e relatórios.
 
 Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil-academia-logo.png`.
 
@@ -31,12 +31,15 @@ Questionário para reunião com o cliente (cobrança, catraca, nuvem): **[QUESTI
 
 Cobrança Plano C (balcão + Stone manual) e APIs Stone/cataca: **[INTEGRACOES.md](./INTEGRACOES.md)**.
 
+Roteiro de apresentação ao cliente: **[DEMO.md](./DEMO.md)**.
+
 ## Scripts úteis
 
 | Script | Descrição |
 |--------|-----------|
 | `npm run pilot:infra` | Postgres + Redis (Docker) |
 | `npm run pilot:setup` | Migrações + seed demo |
+| `npm run demo:seed` | Alunos e dados de apresentação |
 | `npm run pilot:check` | Health check (`/api/health`) |
 | `npm run worker` | Processador de filas |
 | `npm run typecheck` | TypeScript |

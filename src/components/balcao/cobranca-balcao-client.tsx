@@ -99,10 +99,11 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
     <div className="space-y-6">
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
         <p>
-          <strong className="text-foreground">Plano C — balcão:</strong> a Stone
-          cobra o cartão fora do sistema. Quando o pagamento for confirmado
-          (Stone, Pix ou dinheiro), registre aqui. A catraca libera só alunos
-          sem fatura vencida.
+          Registre aqui quando o aluno pagar na recepção —{" "}
+          <strong className="text-foreground">dinheiro, Pix ou cartão Stone</strong>.
+          A cobrança recorrente na Stone acontece fora do sistema; após confirmar
+          o pagamento, clique em <strong className="text-foreground">Registrar pagamento</strong>.
+          Alunos com fatura vencida ficam bloqueados na catraca.
         </p>
         {isAdmin ? (
           <div className="mt-3 flex flex-wrap items-center gap-3">
