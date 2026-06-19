@@ -1,12 +1,16 @@
 # syntax=docker/dockerfile:1
+# Coolify pode injetar NODE_ENV=production no build — forçamos development no npm ci
+# para instalar devDependencies (TypeScript, Tailwind, etc.).
 
 FROM node:20-alpine AS deps
 WORKDIR /app
+ENV NODE_ENV=development
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
+ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ARG DATABASE_URL=postgresql://app:app@localhost:5432/tecnofit
