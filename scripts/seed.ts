@@ -25,36 +25,36 @@ async function main() {
   const platformPassword =
     process.env.SEED_PLATFORM_PASSWORD ?? "demo12345678";
 
-  await withBypassRlsTransaction(async (tx) => {
+  const tenantId = await withBypassRlsTransaction(async (tx) => {
     const [existingTenant] = await tx
       .select({ id: tenants.id })
       .from(tenants)
       .where(eq(tenants.slug, tenantSlug))
       .limit(1);
 
-    let tenantId = existingTenant?.id;
-    if (!tenantId) {
+    let id = existingTenant?.id;
+    if (!id) {
       const [t] = await tx
         .insert(tenants)
         .values({ name: tenantName, slug: tenantSlug })
         .returning({ id: tenants.id });
-      tenantId = t!.id;
-      console.log(`Tenant criado: ${tenantSlug} (${tenantId})`);
+      id = t!.id;
+      console.log(`Tenant criado: ${tenantSlug} (${id})`);
     } else {
-      console.log(`Tenant já existe: ${tenantSlug} (${tenantId})`);
+      console.log(`Tenant já existe: ${tenantSlug} (${id})`);
     }
 
     const [existingUser] = await tx
       .select({ id: tenantUsers.id })
       .from(tenantUsers)
       .where(
-        and(eq(tenantUsers.tenantId, tenantId), eq(tenantUsers.email, userEmail)),
+        and(eq(tenantUsers.tenantId, id), eq(tenantUsers.email, userEmail)),
       )
       .limit(1);
 
     if (!existingUser) {
       await tx.insert(tenantUsers).values({
-        tenantId,
+        tenantId: id,
         email: userEmail,
         passwordHash: await hashPassword(userPassword),
         role: "tenant_admin",
@@ -67,18 +67,18 @@ async function main() {
     const [{ n: planCount }] = await tx
       .select({ n: count() })
       .from(plans)
-      .where(eq(plans.tenantId, tenantId));
+      .where(eq(plans.tenantId, id));
     if (Number(planCount ?? 0) === 0) {
       await tx.insert(plans).values([
         {
-          tenantId,
+          tenantId: id,
           name: "Mensal",
           priceCents: 12900,
           billingInterval: "monthly",
           active: true,
         },
         {
-          tenantId,
+          tenantId: id,
           name: "Anual",
           priceCents: 129000,
           billingInterval: "yearly",
@@ -93,11 +93,11 @@ async function main() {
     const [{ n: templateCount }] = await tx
       .select({ n: count() })
       .from(workoutTemplates)
-      .where(eq(workoutTemplates.tenantId, tenantId));
+      .where(eq(workoutTemplates.tenantId, id));
     if (Number(templateCount ?? 0) === 0) {
       await tx.insert(workoutTemplates).values(
         DEFAULT_WORKOUT_PRESETS.map((p) => ({
-          tenantId,
+          tenantId: id,
           name: p.name,
           description: p.description,
           exercises: p.exercises,
@@ -131,8 +131,11 @@ async function main() {
       console.log(`Super admin já existe: ${platformEmail}`);
     }
 
-    await seedDemoData(tenantId);
+    return id;
   });
+
+  // Após commit — seedDemoData abre transações próprias e precisa ver planos já gravados
+  await seedDemoData(tenantId);
 }
 
 main().catch((e) => {
