@@ -23,6 +23,15 @@ ENV JWT_SECRET=$JWT_SECRET
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
+# Seeds empacotados para o container de produção (sem tsx)
+RUN npx esbuild scripts/seed.ts \
+  --bundle --platform=node --format=esm --packages=external \
+  --alias:dotenv/config=./scripts/env-stub.mjs \
+  --outfile=scripts/seed.prod.mjs
+RUN npx esbuild scripts/seed-demo-only.ts \
+  --bundle --platform=node --format=esm --packages=external \
+  --alias:dotenv/config=./scripts/env-stub.mjs \
+  --outfile=scripts/seed-demo.prod.mjs
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -33,9 +42,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
-# Migrações (pre-start.mjs): fora do bundle standalone do Next.js
+# Migrações e seeds: fora do bundle standalone do Next.js
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/zod ./node_modules/zod
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
