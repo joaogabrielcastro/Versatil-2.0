@@ -42,8 +42,12 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
     e.preventDefault();
     if (!isAdmin) return;
     const list = exercisesForSave(exercises);
-    if (!name.trim() || list.length === 0) return;
+    if (!name.trim() || list.length === 0) {
+      setErr("Informe o nome e pelo menos um exercício.");
+      return;
+    }
     setBusy(true);
+    setErr(null);
     try {
       const res = await fetch("/api/workout-templates", {
         method: "POST",
@@ -71,15 +75,23 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
   async function saveEdit(t: Template) {
     if (!isAdmin || !editingId) return;
     const list = exercisesForSave(editExercises);
-    if (list.length === 0) return;
+    if (list.length === 0) {
+      setErr("Adicione pelo menos um exercício.");
+      return;
+    }
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/workout-templates/${t.id}`, {
+      const res = await fetch(`/api/workout-templates/${t.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ exercises: list }),
       });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível salvar o modelo."));
+        return;
+      }
       setEditingId(null);
       await qc.invalidateQueries({ queryKey: ["workout-templates"] });
     } finally {
@@ -90,13 +102,18 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
   async function toggleActive(t: Template) {
     if (!isAdmin) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/workout-templates/${t.id}`, {
+      const res = await fetch(`/api/workout-templates/${t.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !t.active }),
       });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível atualizar o modelo."));
+        return;
+      }
       await qc.invalidateQueries({ queryKey: ["workout-templates"] });
     } finally {
       setBusy(false);
