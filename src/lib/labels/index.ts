@@ -20,7 +20,7 @@ export const INVOICE_STATUS_LABELS: Record<string, string> = {
 
 export const ROLE_LABELS: Record<string, string> = {
   tenant_admin: "Administrador",
-  tenant_user: "Recepção",
+  tenant_user: "Recepcionista",
   super_admin: "Super admin",
 };
 
