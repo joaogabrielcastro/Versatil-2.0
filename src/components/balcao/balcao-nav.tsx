@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { VersatilLogo } from "@/components/brand/versatil-logo";
+import { cn } from "@/lib/utils";
 
 type NavLink = {
   href: string;
@@ -23,7 +24,7 @@ function buildLinks(tenantSlug: string): NavLink[] {
     { href: "/balcao/relatorios", label: "Relatórios" },
     {
       href: `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`,
-      label: "Terminal aluno",
+      label: "Terminal",
       external: true,
     },
   ];
@@ -47,37 +48,45 @@ export function BalcaoNav({
     : buildLinks(tenantSlug);
 
   return (
-    <nav className="balcao-nav border-b border-border bg-card shadow-sm">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-3">
-        <VersatilLogo href="/balcao" height={44} />
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
-          {links.map((link) => {
-            const active = link.exact
-              ? pathname === link.href.split("?")[0]
-              : pathname.startsWith(link.href.split("?")[0] ?? link.href);
-            const cls = active
-              ? "rounded-md bg-primary/10 px-2.5 py-1 font-medium text-primary"
-              : "rounded-md px-2.5 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-            if (link.external) {
-              return (
-                <a
-                  key={link.href}
-                  className={cls}
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {link.label}
-                </a>
-              );
-            }
-            return (
-              <Link key={link.href} className={cls} href={link.href}>
-                {link.label}
-              </Link>
-            );
-          })}
+    <nav className="balcao-nav sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between gap-3">
+          <VersatilLogo href="/balcao" height={40} />
           <LogoutButton />
+        </div>
+        <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6">
+          <div className="flex w-max min-w-full gap-1 text-sm">
+            {links.map((link) => {
+              const basePath = link.href.split("?")[0] ?? link.href;
+              const active = link.exact
+                ? pathname === basePath
+                : pathname.startsWith(basePath);
+              const cls = cn(
+                "whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              );
+              if (link.external) {
+                return (
+                  <a
+                    key={link.href}
+                    className={cls}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {link.label}
+                  </a>
+                );
+              }
+              return (
+                <Link key={link.href} className={cls} href={link.href}>
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </nav>
