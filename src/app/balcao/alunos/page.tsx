@@ -9,6 +9,8 @@ import { NewStudentForm } from "@/components/balcao/new-student-form";
 import { StudentStatusBadge } from "@/components/ui/status-badge";
 import { formatCpf } from "@/lib/labels";
 
+const PAGE_SIZE = 25;
+
 type StudentRow = {
   id: string;
   fullName: string;
@@ -17,8 +19,11 @@ type StudentRow = {
   status: string;
 };
 
-async function fetchStudents(q: string) {
-  const params = new URLSearchParams({ limit: "50" });
+async function fetchStudents(q: string, offset: number) {
+  const params = new URLSearchParams({
+    limit: String(PAGE_SIZE),
+    offset: String(offset),
+  });
   if (q.trim()) params.set("q", q.trim());
   const res = await fetch(`/api/students?${params.toString()}`, {
     credentials: "include",
@@ -26,19 +31,34 @@ async function fetchStudents(q: string) {
   if (!res.ok) {
     throw new Error("Falha ao carregar alunos.");
   }
-  return (await res.json()) as { items: StudentRow[] };
+  return (await res.json()) as {
+    items: StudentRow[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
 }
 
 export default function AlunosPage() {
   const [q, setQ] = useState("");
+  const [offset, setOffset] = useState(0);
   const debounced = useDebouncedValue(q, 300);
 
+  useEffect(() => {
+    setOffset(0);
+  }, [debounced]);
+
   const query = useQuery({
-    queryKey: ["students", debounced],
-    queryFn: () => fetchStudents(debounced),
+    queryKey: ["students", debounced, offset],
+    queryFn: () => fetchStudents(debounced, offset),
   });
 
   const items = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
+  const page = Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + PAGE_SIZE, total);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -65,7 +85,14 @@ export default function AlunosPage() {
 
       <section className="mt-8 grid gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="text-sm font-medium text-muted-foreground">Resultados</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-muted-foreground">Resultados</h2>
+            {total > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {from}–{to} de {total}
+              </p>
+            ) : null}
+          </div>
           <div className="mt-2 overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead className="bg-muted/60">
@@ -115,6 +142,31 @@ export default function AlunosPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={offset === 0 || query.isFetching}
+                onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Página {page} de {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={offset + PAGE_SIZE >= total || query.isFetching}
+                onClick={() => setOffset((o) => o + PAGE_SIZE)}
+              >
+                Próxima
+              </Button>
+            </div>
+          ) : null}
         </div>
         <div>
           <h2 className="text-sm font-medium text-muted-foreground">

@@ -4,7 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrDateInput } from "@/components/ui/br-date-input";
+import { FlashMessage } from "@/components/ui/flash-message";
 import { Input } from "@/components/ui/input";
+import { readApiError } from "@/lib/api/read-error";
 import {
   MANUAL_PAYMENT_LABELS,
   MANUAL_PAYMENT_METHODS,
@@ -57,10 +59,14 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
   const [note, setNote] = useState("");
   const [paymentMethod, setPaymentMethod] =
     useState<ManualPaymentMethod>("stone_card");
+  const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
     setDueError(null);
+    setErr(null);
+    setSuccess(null);
     const dueDate = parseDateBr(due);
     if (!dueDate) {
       setDueError("Vencimento inválido. Use dd/mm/aaaa ou dd/mm/aaaa HH:mm.");
@@ -69,7 +75,10 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
     setBusy(true);
     try {
       const cents = Math.round(Number(amount.replace(",", ".")) * 100);
-      if (!Number.isFinite(cents) || cents <= 0) return;
+      if (!Number.isFinite(cents) || cents <= 0) {
+        setErr("Informe um valor válido.");
+        return;
+      }
       const res = await fetch("/api/invoices", {
         method: "POST",
         credentials: "include",
@@ -80,17 +89,30 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           dueAt: dueDate.toISOString(),
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível criar a fatura."));
+        return;
+      }
       setAmount("");
       setDue("");
+      setSuccess("Fatura criada com sucesso.");
       await qc.invalidateQueries({ queryKey: ["billing", studentId] });
     } finally {
       setBusy(false);
     }
   }
 
-  async function settle(id: string) {
+  async function settle(id: string, amountCents: number, currency: string) {
+    const label = MANUAL_PAYMENT_LABELS[paymentMethod];
+    const value = (amountCents / 100).toLocaleString("pt-BR", {
+      style: "currency",
+      currency,
+    });
+    if (!window.confirm(`Confirmar pagamento de ${value} via ${label}?`)) return;
+
     setBusy(true);
+    setErr(null);
+    setSuccess(null);
     try {
       const res = await fetch(`/api/invoices/${id}/settle-manual`, {
         method: "POST",
@@ -101,7 +123,11 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           note: note || undefined,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível registrar o pagamento."));
+        return;
+      }
+      setSuccess("Pagamento registrado.");
       await qc.invalidateQueries({ queryKey: ["billing", studentId] });
       await qc.invalidateQueries({ queryKey: ["open-invoices"] });
     } finally {
@@ -120,6 +146,16 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
+      <div className="lg:col-span-2">
+        <FlashMessage
+          error={err}
+          success={success}
+          onDismiss={() => {
+            setErr(null);
+            setSuccess(null);
+          }}
+        />
+      </div>
       <div>
         <h3 className="text-sm font-medium">Nova fatura avulsa</h3>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -177,7 +213,9 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                     size="sm"
                     variant="default"
                     disabled={busy}
-                    onClick={() => void settle(inv.id)}
+                    onClick={() =>
+                      void settle(inv.id, inv.amountCents, inv.currency)
+                    }
                   >
                     Registrar pagamento
                   </Button>

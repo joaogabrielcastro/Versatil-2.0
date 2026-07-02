@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -50,25 +50,35 @@ export async function GET(request: Request) {
           )
         : eq(students.tenantId, tenantId);
 
-    return tx
-      .select({
-        id: students.id,
-        fullName: students.fullName,
-        cpf: students.cpf,
-        email: students.email,
-        whatsapp: students.whatsapp,
-        birthDate: students.birthDate,
-        status: students.status,
-        createdAt: students.createdAt,
-      })
-      .from(students)
-      .where(whereExpr!)
-      .orderBy(desc(students.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const [items, [{ total }]] = await Promise.all([
+      tx
+        .select({
+          id: students.id,
+          fullName: students.fullName,
+          cpf: students.cpf,
+          email: students.email,
+          whatsapp: students.whatsapp,
+          birthDate: students.birthDate,
+          status: students.status,
+          createdAt: students.createdAt,
+        })
+        .from(students)
+        .where(whereExpr!)
+        .orderBy(desc(students.createdAt))
+        .limit(limit)
+        .offset(offset),
+      tx.select({ total: count() }).from(students).where(whereExpr!),
+    ]);
+
+    return { items, total: Number(total ?? 0) };
   });
 
-  return NextResponse.json({ items: rows, limit, offset });
+  return NextResponse.json({
+    items: rows.items,
+    total: rows.total,
+    limit,
+    offset,
+  });
 }
 
 export async function POST(request: Request) {

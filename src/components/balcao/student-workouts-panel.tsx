@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FlashMessage } from "@/components/ui/flash-message";
+import { readApiError } from "@/lib/api/read-error";
 import { ExerciseEditor, exercisesForSave } from "@/components/balcao/exercise-editor";
 import type { WorkoutExercise } from "@/lib/workouts/types";
 
@@ -47,10 +49,12 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
   const [editName, setEditName] = useState("");
   const [editExercises, setEditExercises] = useState<WorkoutExercise[]>([]);
   const [editNotes, setEditNotes] = useState("");
+  const [err, setErr] = useState<string | null>(null);
 
   async function assignFromTemplate() {
     if (!templateId) return;
     setBusy(true);
+    setErr(null);
     try {
       const res = await fetch(`/api/students/${studentId}/workouts`, {
         method: "POST",
@@ -58,7 +62,10 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateId }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível atribuir o treino."));
+        return;
+      }
       setTemplateId("");
       await qc.invalidateQueries({ queryKey: ["student-workouts", studentId] });
     } finally {
@@ -70,8 +77,9 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
     const list = exercisesForSave(editExercises);
     if (!editName.trim() || list.length === 0) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/students/${studentId}/workouts/${workoutId}`, {
+      const res = await fetch(`/api/students/${studentId}/workouts/${workoutId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -81,6 +89,10 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
           notes: editNotes.trim() || null,
         }),
       });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível salvar o treino."));
+        return;
+      }
       setEditingId(null);
       await qc.invalidateQueries({ queryKey: ["student-workouts", studentId] });
     } finally {
@@ -91,11 +103,16 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
   async function removeWorkout(workoutId: string) {
     if (!confirm("Remover este treino do aluno?")) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/students/${studentId}/workouts/${workoutId}`, {
+      const res = await fetch(`/api/students/${studentId}/workouts/${workoutId}`, {
         method: "DELETE",
         credentials: "include",
       });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível remover o treino."));
+        return;
+      }
       await qc.invalidateQueries({ queryKey: ["student-workouts", studentId] });
     } finally {
       setBusy(false);
@@ -111,6 +128,7 @@ export function StudentWorkoutsPanel({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-6">
+      <FlashMessage error={err} onDismiss={() => setErr(null)} />
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/30 p-4">
         <label className="flex flex-col gap-1 text-sm">
           Atribuir modelo pré-fixado

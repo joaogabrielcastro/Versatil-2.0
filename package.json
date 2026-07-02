@@ -23,6 +23,9 @@
     "pilot:worker:docker": "docker compose --profile pilot up -d --build worker",
     "pilot:setup": "node scripts/pilot-setup.mjs",
     "pilot:check": "node scripts/pilot-check.mjs",
+    "deploy:smoke": "node scripts/deploy-smoke.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "icons:generate": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
@@ -59,6 +62,7 @@
     "sharp": "^0.35.3",
     "tailwindcss": "^4.1.7",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

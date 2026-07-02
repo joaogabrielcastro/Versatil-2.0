@@ -3,7 +3,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FlashMessage } from "@/components/ui/flash-message";
 import { Input } from "@/components/ui/input";
+import { readApiError } from "@/lib/api/read-error";
 import { ExerciseEditor, exercisesForSave } from "@/components/balcao/exercise-editor";
 import type { WorkoutExercise } from "@/lib/workouts/types";
 
@@ -32,6 +34,7 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
     { name: "", sets: "3", reps: "10–12", rest: "60s" },
   ]);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editExercises, setEditExercises] = useState<WorkoutExercise[]>([]);
 
@@ -52,7 +55,10 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
           exercises: list,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível criar o modelo."));
+        return;
+      }
       setName("");
       setDescription("");
       setExercises([{ name: "", sets: "3", reps: "10–12", rest: "60s" }]);
@@ -108,6 +114,7 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
 
   return (
     <div className="space-y-10">
+      <FlashMessage error={err} onDismiss={() => setErr(null)} />
       {isAdmin ? (
         <section>
           <h2 className="text-lg font-medium">Novo modelo</h2>

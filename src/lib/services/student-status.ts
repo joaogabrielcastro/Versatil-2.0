@@ -4,8 +4,13 @@ import {
   withBypassRlsTransaction,
   withTenantTransaction,
 } from "@/lib/db/with-tenant";
+import {
+  computeStudentStatus,
+  isSubscriptionActiveAt,
+  type StudentComputedStatus,
+} from "@/lib/services/student-status-logic";
 
-export type StudentComputedStatus = "active" | "delinquent" | "inactive";
+export type { StudentComputedStatus };
 
 /**
  * Recalcula status do aluno: inadimplente (fatura em aberto vencida ou incobrável),
@@ -55,13 +60,14 @@ export async function recalculateStudentStatus(
         ),
       );
 
-    const hasActivePlan = subs.some((s) => {
-      if (s.startsAt.getTime() > now.getTime()) return false;
-      if (s.endsAt && s.endsAt.getTime() < now.getTime()) return false;
-      return true;
-    });
+    const hasActivePlan = subs.some((s) =>
+      isSubscriptionActiveAt(s.startsAt, s.endsAt, now),
+    );
 
-    const next: StudentComputedStatus = hasActivePlan ? "active" : "inactive";
+    const next = computeStudentStatus({
+      hasBadInvoice: badInvoices.length > 0,
+      hasActivePlan,
+    });
     await tx
       .update(students)
       .set({ status: next, updatedAt: now })

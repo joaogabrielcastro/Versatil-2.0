@@ -4,11 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FlashMessage } from "@/components/ui/flash-message";
 import {
   MANUAL_PAYMENT_LABELS,
   MANUAL_PAYMENT_METHODS,
   type ManualPaymentMethod,
 } from "@/lib/billing/payment-methods";
+import { readApiError } from "@/lib/api/read-error";
 import { formatDateBr } from "@/lib/dates/br";
 
 type OpenInvoice = {
@@ -41,21 +43,37 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const [methodByInvoice, setMethodByInvoice] = useState<
     Record<string, ManualPaymentMethod>
   >({});
 
-  async function settle(invoiceId: string) {
-    const paymentMethod = methodByInvoice[invoiceId] ?? "stone_card";
-    setBusyId(invoiceId);
+  async function settle(inv: OpenInvoice) {
+    const paymentMethod = methodByInvoice[inv.invoiceId] ?? "stone_card";
+    const label = MANUAL_PAYMENT_LABELS[paymentMethod];
+    const amount = money(inv.amountCents, inv.currency);
+    if (
+      !window.confirm(
+        `Confirmar pagamento de ${amount} para ${inv.studentName} via ${label}?`,
+      )
+    ) {
+      return;
+    }
+    setBusyId(inv.invoiceId);
+    setErr(null);
+    setMsg(null);
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/settle-manual`, {
+      const res = await fetch(`/api/invoices/${inv.invoiceId}/settle-manual`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentMethod }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível registrar o pagamento."));
+        return;
+      }
+      setMsg(`Pagamento registrado para ${inv.studentName}.`);
       await qc.invalidateQueries({ queryKey: ["open-invoices"] });
     } finally {
       setBusyId(null);
@@ -65,6 +83,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
   async function generateInvoices() {
     setGenBusy(true);
     setMsg(null);
+    setErr(null);
     try {
       const res = await fetch("/api/billing/generate-invoices", {
         method: "POST",
@@ -75,7 +94,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
         created?: number;
       };
       if (!res.ok) {
-        setMsg(j.error ?? "Erro ao gerar faturas.");
+        setErr(j.error ?? "Erro ao gerar faturas.");
         return;
       }
       setMsg(`${j.created ?? 0} fatura(s) criada(s).`);
@@ -97,6 +116,14 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-6">
+      <FlashMessage
+        error={err}
+        success={msg}
+        onDismiss={() => {
+          setErr(null);
+          setMsg(null);
+        }}
+      />
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
         <p>
           Registre aqui quando o aluno pagar na recepção —{" "}
@@ -116,7 +143,6 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
             >
               Gerar faturas do período
             </Button>
-            {msg ? <span className="text-foreground">{msg}</span> : null}
           </div>
         ) : null}
       </div>
@@ -176,7 +202,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                   type="button"
                   size="sm"
                   disabled={busyId === inv.invoiceId}
-                  onClick={() => void settle(inv.invoiceId)}
+                  onClick={() => void settle(inv)}
                 >
                   Registrar pagamento
                 </Button>

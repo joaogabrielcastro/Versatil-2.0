@@ -3,7 +3,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FlashMessage } from "@/components/ui/flash-message";
 import { Input } from "@/components/ui/input";
+import { readApiError } from "@/lib/api/read-error";
 import {
   type BillingInterval,
   billingIntervalLabel,
@@ -31,13 +33,20 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
   const [price, setPrice] = useState("");
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     if (!isAdmin) return;
     const cents = Math.round(Number(price.replace(",", ".")) * 100);
-    if (!Number.isFinite(cents) || cents < 0 || !name.trim()) return;
+    if (!Number.isFinite(cents) || cents < 0 || !name.trim()) {
+      setErr("Preencha nome e preço válidos.");
+      return;
+    }
     setBusy(true);
+    setErr(null);
+    setSuccess(null);
     try {
       const res = await fetch("/api/plans", {
         method: "POST",
@@ -49,9 +58,13 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
           billingInterval: interval,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível criar o plano."));
+        return;
+      }
       setName("");
       setPrice("");
+      setSuccess("Plano criado.");
       await qc.invalidateQueries({ queryKey: ["plans"] });
     } finally {
       setBusy(false);
@@ -61,13 +74,18 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
   async function toggleActive(p: Plan) {
     if (!isAdmin) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/plans/${p.id}`, {
+      const res = await fetch(`/api/plans/${p.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !p.active }),
       });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível atualizar o plano."));
+        return;
+      }
       await qc.invalidateQueries({ queryKey: ["plans"] });
     } finally {
       setBusy(false);
@@ -85,6 +103,14 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-8">
+      <FlashMessage
+        error={err}
+        success={success}
+        onDismiss={() => {
+          setErr(null);
+          setSuccess(null);
+        }}
+      />
       {isAdmin ? (
         <section>
           <h2 className="text-lg font-medium">Novo plano</h2>

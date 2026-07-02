@@ -5,25 +5,46 @@ import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { VersatilLogo } from "@/components/brand/versatil-logo";
 
-const baseLinks = [
-  { href: "/balcao", label: "Painel", exact: true },
-  { href: "/balcao/alunos", label: "Alunos" },
-  { href: "/balcao/cobranca", label: "Cobrança" },
-  { href: "/balcao/presenca", label: "Presença" },
-  { href: "/balcao/treinos", label: "Treinos" },
-  { href: "/balcao/planos", label: "Planos" },
-  { href: "/balcao/relatorios", label: "Relatórios" },
-  { href: "/imprimir-treino?slug=demo", label: "Terminal aluno", external: true },
-] as const;
+type NavLink = {
+  href: string;
+  label: string;
+  exact?: boolean;
+  external?: boolean;
+};
 
-const adminLinks = [
+function buildLinks(tenantSlug: string): NavLink[] {
+  return [
+    { href: "/balcao", label: "Painel", exact: true },
+    { href: "/balcao/alunos", label: "Alunos" },
+    { href: "/balcao/cobranca", label: "Cobrança" },
+    { href: "/balcao/presenca", label: "Presença" },
+    { href: "/balcao/treinos", label: "Treinos" },
+    { href: "/balcao/planos", label: "Planos" },
+    { href: "/balcao/relatorios", label: "Relatórios" },
+    {
+      href: `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`,
+      label: "Terminal aluno",
+      external: true,
+    },
+  ];
+}
+
+const adminLinks: NavLink[] = [
   { href: "/balcao/configuracoes/usuarios", label: "Usuários" },
   { href: "/balcao/configuracoes/integracoes", label: "Integrações" },
-] as const;
+];
 
-export function BalcaoNav({ isAdmin = false }: { isAdmin?: boolean }) {
+export function BalcaoNav({
+  isAdmin = false,
+  tenantSlug = "demo",
+}: {
+  isAdmin?: boolean;
+  tenantSlug?: string;
+}) {
   const pathname = usePathname();
-  const links = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+  const links = isAdmin
+    ? [...buildLinks(tenantSlug), ...adminLinks]
+    : buildLinks(tenantSlug);
 
   return (
     <nav className="balcao-nav border-b border-border bg-card shadow-sm">
@@ -31,14 +52,13 @@ export function BalcaoNav({ isAdmin = false }: { isAdmin?: boolean }) {
         <VersatilLogo href="/balcao" height={44} />
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
           {links.map((link) => {
-            const active =
-              "exact" in link && link.exact
-                ? pathname === link.href.split("?")[0]
-                : pathname.startsWith(link.href);
+            const active = link.exact
+              ? pathname === link.href.split("?")[0]
+              : pathname.startsWith(link.href.split("?")[0] ?? link.href);
             const cls = active
               ? "rounded-md bg-primary/10 px-2.5 py-1 font-medium text-primary"
               : "rounded-md px-2.5 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-            if ("external" in link && link.external) {
+            if (link.external) {
               return (
                 <a
                   key={link.href}

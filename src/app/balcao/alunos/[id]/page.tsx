@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { StudentEditForm } from "@/components/balcao/student-edit-form";
 import { StudentAttendancePanel } from "@/components/balcao/student-attendance-panel";
 import { StudentBillingPanel } from "@/components/balcao/student-billing-panel";
 import { StudentSubscriptionsPanel } from "@/components/balcao/student-subscriptions-panel";
@@ -55,6 +56,24 @@ export default async function AlunoDetalhePage({
           </div>
         </div>
       </div>
+
+      <section className="mt-8 rounded-lg border border-border bg-card p-4">
+        <h2 className="text-lg font-medium">Dados do aluno</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Atualize contato e informações cadastrais.
+        </p>
+        <div className="mt-4 max-w-md">
+          <StudentEditForm
+            studentId={student.id}
+            initial={{
+              fullName: student.fullName,
+              email: student.email,
+              whatsapp: student.whatsapp,
+              birthDate: student.birthDate,
+            }}
+          />
+        </div>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-medium">Presença na academia</h2>

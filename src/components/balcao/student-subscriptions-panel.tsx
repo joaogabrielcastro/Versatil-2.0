@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrDateInput } from "@/components/ui/br-date-input";
+import { FlashMessage } from "@/components/ui/flash-message";
+import { readApiError } from "@/lib/api/read-error";
 import { formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
 import { billingIntervalLabel } from "@/lib/billing/interval-labels";
 
@@ -61,6 +63,8 @@ export function StudentSubscriptionsPanel({
   const [endsAt, setEndsAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function createSub(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +84,8 @@ export function StudentSubscriptionsPanel({
       }
     }
     setBusy(true);
+    setErr(null);
+    setSuccess(null);
     try {
       const body: Record<string, string> = {
         planId,
@@ -92,10 +98,14 @@ export function StudentSubscriptionsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível associar o plano."));
+        return;
+      }
       setPlanId("");
       setStartsAt("");
       setEndsAt("");
+      setSuccess("Plano associado ao aluno.");
       await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
     } finally {
       setBusy(false);
@@ -118,6 +128,16 @@ export function StudentSubscriptionsPanel({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <div className="lg:col-span-2">
+        <FlashMessage
+          error={err}
+          success={success}
+          onDismiss={() => {
+            setErr(null);
+            setSuccess(null);
+          }}
+        />
+      </div>
       <div>
         <h3 className="text-sm font-medium">Nova assinatura</h3>
         <form

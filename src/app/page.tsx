@@ -22,6 +22,10 @@ const features = [
   },
 ];
 
+const showDemoCredentials =
+  process.env.NODE_ENV !== "production" ||
+  process.env.SHOW_DEMO_CREDENTIALS === "true";
+
 export default function HomePage() {
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-12">
@@ -54,38 +58,51 @@ export default function HomePage() {
       </section>
 
       <section className="mt-10 grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-5 text-left">
-          <p className="font-medium">Demonstração</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Use estas credenciais para explorar o sistema:
-          </p>
-          <dl className="mt-3 space-y-1 font-mono text-xs text-foreground">
-            <div>
-              <dt className="inline text-muted-foreground">Slug: </dt>
-              <dd className="inline">demo</dd>
-            </div>
-            <div>
-              <dt className="inline text-muted-foreground">E-mail: </dt>
-              <dd className="inline">recep@demo.com</dd>
-            </div>
-            <div>
-              <dt className="inline text-muted-foreground">Senha: </dt>
-              <dd className="inline">demo12345678</dd>
-            </div>
-          </dl>
-          <Button asChild variant="outline" size="sm" className="mt-4">
-            <Link href="/login?demo=1">Entrar com conta demo</Link>
-          </Button>
-        </div>
+        {showDemoCredentials ? (
+          <div className="rounded-lg border border-border bg-card p-5 text-left">
+            <p className="font-medium">Demonstração</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Use estas credenciais para explorar o sistema:
+            </p>
+            <dl className="mt-3 space-y-1 font-mono text-xs text-foreground">
+              <div>
+                <dt className="inline text-muted-foreground">Slug: </dt>
+                <dd className="inline">demo</dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">E-mail: </dt>
+                <dd className="inline">recep@demo.com</dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">Senha: </dt>
+                <dd className="inline">demo12345678</dd>
+              </div>
+            </dl>
+            <Button asChild variant="outline" size="sm" className="mt-4">
+              <Link href="/login?demo=1">Entrar com conta demo</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-card p-5 text-left">
+            <p className="font-medium">Para academias</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Acesso exclusivo para equipes cadastradas. Solicite credenciais ao
+              administrador da sua unidade.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-4">
+              <Link href="/login">Acessar o sistema</Link>
+            </Button>
+          </div>
+        )}
 
         <div className="rounded-lg border border-dashed border-border p-5 text-left">
           <p className="font-medium">Terminal do aluno</p>
           <p className="mt-2 text-sm text-muted-foreground">
             Impressão do treino do dia — sem login, direto na recepção ou totem.
           </p>
-          <Button asChild variant="outline" size="sm" className="mt-4">
-            <Link href="/imprimir-treino?slug=demo">Abrir terminal</Link>
-          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            O link do terminal é configurado por academia após o login no balcão.
+          </p>
         </div>
       </section>
     </main>
