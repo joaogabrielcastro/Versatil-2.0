@@ -22,6 +22,7 @@ ENV REDIS_URL=$REDIS_URL
 ENV JWT_SECRET=$JWT_SECRET
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run icons:generate
 RUN npm run build
 # Seeds empacotados para o container de produção (sem tsx)
 RUN npx esbuild scripts/seed.ts \

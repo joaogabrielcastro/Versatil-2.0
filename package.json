@@ -22,7 +22,8 @@
     "pilot:infra:down": "docker compose down",
     "pilot:worker:docker": "docker compose --profile pilot up -d --build worker",
     "pilot:setup": "node scripts/pilot-setup.mjs",
-    "pilot:check": "node scripts/pilot-check.mjs"
+    "pilot:check": "node scripts/pilot-check.mjs",
+    "icons:generate": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
@@ -55,6 +56,7 @@
     "drizzle-kit": "^0.31.1",
     "eslint": "^9.26.0",
     "eslint-config-next": "^15.3.2",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.1.7",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

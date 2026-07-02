@@ -1,6 +1,16 @@
-const CACHE = "versatil-static-v1";
+const CACHE = "versatil-static-v2";
 
-const PRECACHE_URLS = ["/", "/versatil-academia-logo.png"];
+const PRECACHE_URLS = [
+  "/",
+  "/versatil-academia-logo.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-192.png",
+  "/icon-maskable-512.png",
+  "/apple-touch-icon.png",
+  "/favicon-32.png",
+  "/favicon-16.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -20,8 +20,13 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: BRAND.logoPath,
-    apple: BRAND.logoPath,
+    icon: [
+      { url: BRAND.favicon16, sizes: "16x16", type: "image/png" },
+      { url: BRAND.favicon32, sizes: "32x32", type: "image/png" },
+      { url: BRAND.icon192, sizes: "192x192", type: "image/png" },
+      { url: BRAND.icon512, sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: BRAND.appleTouchIcon, sizes: "180x180", type: "image/png" }],
   },
 };
 
