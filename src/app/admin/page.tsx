@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
+import { VersatilLogo } from "@/components/brand/versatil-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -49,6 +50,9 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mb-8">
+        <VersatilLogo href="/" height={48} />
+      </div>
       <p className="text-sm text-muted-foreground">Super admin</p>
       <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
       <p className="mt-2 text-sm text-muted-foreground">

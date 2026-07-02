@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import { AppShellHeader } from "@/components/brand/app-shell-header";
 import { Button } from "@/components/ui/button";
 
 export default function PlatformLoginPage() {
@@ -38,15 +39,10 @@ export default function PlatformLoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Plataforma (super admin)
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Acesso ao dono do SaaS. Após o login, use APIs e ferramentas internas
-          (painel admin em evolução).
-        </p>
-      </div>
+      <AppShellHeader
+        title="Plataforma (super admin)"
+        subtitle="Acesso ao dono do SaaS. Após o login, use APIs e ferramentas internas (painel admin em evolução)."
+      />
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">E-mail</span>

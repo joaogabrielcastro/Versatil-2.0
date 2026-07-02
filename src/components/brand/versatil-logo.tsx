@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
 
@@ -8,57 +9,25 @@ type VersatilLogoProps = {
   priority?: boolean;
 };
 
-/** Logo em SVG — não depende de arquivo em public/ para demos. */
+/** Logo oficial Versátil Academia (`public/versatil-academia-logo.png`). */
 export function VersatilLogo({
   height = 52,
   className = "",
   href,
+  priority = false,
 }: VersatilLogoProps) {
-  const width = Math.round(height * 2.6);
+  const width = Math.round(height * 2.85);
+
   const mark = (
-    <svg
+    <Image
+      src={BRAND.logoPath}
+      alt={BRAND.name}
       width={width}
       height={height}
-      viewBox="0 0 260 52"
-      role="img"
-      aria-label={BRAND.name}
-      className={className}
-    >
-      <rect x="0" y="8" width="36" height="36" rx="6" fill="#c41e3a" />
-      <text
-        x="18"
-        y="32"
-        textAnchor="middle"
-        fill="#fff"
-        fontSize="18"
-        fontWeight="700"
-        fontFamily="system-ui, sans-serif"
-      >
-        V
-      </text>
-      <text
-        x="48"
-        y="22"
-        fill="#c41e3a"
-        fontSize="15"
-        fontWeight="700"
-        fontFamily="system-ui, sans-serif"
-        letterSpacing="0.04em"
-      >
-        VERSÁTIL
-      </text>
-      <text
-        x="48"
-        y="40"
-        fill="#5c5c5c"
-        fontSize="11"
-        fontWeight="500"
-        fontFamily="system-ui, sans-serif"
-        letterSpacing="0.12em"
-      >
-        ACADEMIA
-      </text>
-    </svg>
+      priority={priority}
+      className={`h-auto w-auto object-contain object-left ${className}`}
+      style={{ maxHeight: height }}
+    />
   );
 
   if (href) {
