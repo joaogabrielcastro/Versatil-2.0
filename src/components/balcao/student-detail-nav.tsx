@@ -43,7 +43,7 @@ export function StudentDetailNav() {
   return (
     <nav
       aria-label="Seções da ficha"
-      className="sticky top-[5.5rem] z-30 -mx-6 mb-6 overflow-x-auto border-b border-border bg-background/95 px-6 backdrop-blur"
+      className="sticky top-[7rem] z-30 -mx-6 mb-6 overflow-x-auto border-b border-border bg-background/95 px-6 backdrop-blur"
     >
       <div className="flex w-max gap-1 py-2">
         {SECTIONS.map((s) => (

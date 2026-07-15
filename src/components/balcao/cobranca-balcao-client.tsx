@@ -3,8 +3,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FlashMessage } from "@/components/ui/flash-message";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   MANUAL_PAYMENT_LABELS,
   MANUAL_PAYMENT_METHODS,
@@ -105,7 +110,13 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
   }
 
   if (q.isLoading) {
-    return <p className="text-sm text-muted-foreground">Carregando…</p>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    );
   }
   if (q.isError) {
     return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
@@ -124,28 +135,30 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
           setMsg(null);
         }}
       />
-      <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-        <p>
-          Registre aqui quando o aluno pagar na recepção —{" "}
-          <strong className="text-foreground">dinheiro, Pix ou cartão Stone</strong>.
-          A cobrança recorrente na Stone acontece fora do sistema; após confirmar
-          o pagamento, clique em <strong className="text-foreground">Registrar pagamento</strong>.
-          Alunos com fatura vencida ficam bloqueados na catraca.
-        </p>
-        {isAdmin ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={genBusy}
-              onClick={() => void generateInvoices()}
-            >
-              Gerar faturas do período
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <Card>
+        <CardContent className="pt-5 text-sm text-muted-foreground">
+          <p>
+            Registre aqui quando o aluno pagar na recepção —{" "}
+            <strong className="text-foreground">dinheiro, Pix ou cartão Stone</strong>.
+            A cobrança recorrente na Stone acontece fora do sistema; após confirmar
+            o pagamento, clique em <strong className="text-foreground">Registrar pagamento</strong>.
+            Alunos com fatura vencida ficam bloqueados na catraca.
+          </p>
+          {isAdmin ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={genBusy}
+                onClick={() => void generateInvoices()}
+              >
+                Gerar faturas do período
+              </Button>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {overdue.length > 0 ? (
         <p className="text-sm font-medium text-red-700">
@@ -155,16 +168,27 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
       ) : null}
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma fatura em aberto. Associe planos aos alunos ou gere faturas do
-          período.
-        </p>
+        <EmptyState
+          icon={Receipt}
+          title="Nenhuma fatura em aberto"
+          description="Associe planos aos alunos ou gere faturas do período."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/balcao/planos">Ver planos</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/balcao/alunos">Ver alunos</Link>
+              </Button>
+            </div>
+          }
+        />
       ) : (
         <ul className="space-y-3">
           {items.map((inv) => (
             <li
               key={inv.invoiceId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm transition-shadow hover:shadow-md"
             >
               <div>
                 <Link
@@ -182,8 +206,8 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                <Select
+                  className="h-9 w-auto"
                   value={methodByInvoice[inv.invoiceId] ?? "stone_card"}
                   onChange={(e) =>
                     setMethodByInvoice((m) => ({
@@ -197,7 +221,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                       {MANUAL_PAYMENT_LABELS[m]}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <Button
                   type="button"
                   size="sm"

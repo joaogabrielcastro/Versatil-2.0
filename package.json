@@ -17,6 +17,7 @@
     "db:seed:prod": "node scripts/seed.prod.mjs",
     "demo:seed": "tsx scripts/seed-demo-only.ts",
     "demo:seed:prod": "node scripts/seed-demo.prod.mjs",
+    "import:students": "tsx scripts/import-students.ts",
     "worker": "tsx src/workers/index.ts",
     "pilot:infra": "docker compose up -d postgres redis",
     "pilot:infra:down": "docker compose down",

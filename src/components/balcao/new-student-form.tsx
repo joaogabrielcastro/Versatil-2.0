@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FlashMessage } from "@/components/ui/flash-message";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { readApiError } from "@/lib/api/read-error";
 
 type Props = {
@@ -51,7 +52,7 @@ export function NewStudentForm({ onCreated }: Props) {
   }
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
+    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
       <FlashMessage
         error={error}
         success={success}
@@ -60,21 +61,36 @@ export function NewStudentForm({ onCreated }: Props) {
           setSuccess(null);
         }}
       />
-      <Input
-        placeholder="Nome completo"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-        required
-      />
-      <Input placeholder="CPF" value={cpf} onChange={(e) => setCpf(e.target.value)} required />
-      <Input
-        type="email"
-        placeholder="E-mail (opcional)"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <Button type="submit" disabled={loading}>
-        {loading ? "Salvando…" : "Cadastrar"}
+      <div className="space-y-1.5">
+        <Label htmlFor="new-student-name">Nome completo</Label>
+        <Input
+          id="new-student-name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="new-student-cpf">CPF</Label>
+        <Input
+          id="new-student-cpf"
+          value={cpf}
+          onChange={(e) => setCpf(e.target.value)}
+          placeholder="000.000.000-00"
+          required
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="new-student-email">E-mail (opcional)</Label>
+        <Input
+          id="new-student-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Salvando…" : "Cadastrar aluno"}
       </Button>
     </form>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DoorOpen } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTimeBr } from "@/lib/dates/br";
 
 type AccessRow = {
@@ -74,18 +76,20 @@ export function AccessFeed() {
 
   if (events.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nenhum acesso registrado ainda. Quando a catraca liberar um aluno, aparece aqui.
-      </p>
+      <EmptyState
+        icon={DoorOpen}
+        title="Nenhum acesso registrado"
+        description="Quando a catraca liberar um aluno, a entrada aparece aqui em tempo real."
+      />
     );
   }
 
   return (
-    <ul className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-card p-3 text-sm">
+    <ul className="max-h-80 space-y-1 overflow-y-auto rounded-lg border border-border bg-card p-2 text-sm shadow-sm">
       {events.map((e) => (
         <li
           key={e.id}
-          className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-2 last:border-0"
+          className="flex flex-wrap items-baseline justify-between gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted/40"
         >
           <span>
             <span className="font-medium text-foreground">

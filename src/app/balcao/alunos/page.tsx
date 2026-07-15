@@ -2,10 +2,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { Search, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NewStudentForm } from "@/components/balcao/new-student-form";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { StudentStatusBadge } from "@/components/ui/status-badge";
 import { formatCpf } from "@/lib/labels";
 
@@ -62,24 +67,24 @@ export default function AlunosPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Alunos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Busca por nome, CPF ou e-mail.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/balcao">Voltar ao painel</Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Alunos"
+        description="Busca por nome, CPF ou e-mail."
+        backHref="/balcao"
+        backLabel="Painel"
+      />
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="mt-6 relative max-w-md">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
         <Input
-          placeholder="Buscar…"
+          placeholder="Buscar aluno…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="max-w-md"
+          className="pl-9"
+          aria-label="Buscar aluno"
         />
       </div>
 
@@ -93,22 +98,18 @@ export default function AlunosPage() {
               </p>
             ) : null}
           </div>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead className="bg-muted/60">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Nome</th>
-                  <th className="px-3 py-2 font-medium">CPF</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2.5 font-medium">Nome</th>
+                  <th className="px-3 py-2.5 font-medium">CPF</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {query.isLoading ? (
-                  <tr>
-                    <td colSpan={3} className="px-3 py-6 text-muted-foreground">
-                      Carregando…
-                    </td>
-                  </tr>
+                  <TableSkeleton rows={6} cols={3} />
                 ) : query.isError ? (
                   <tr>
                     <td colSpan={3} className="px-3 py-6 text-red-600">
@@ -117,23 +118,37 @@ export default function AlunosPage() {
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-muted-foreground">
-                      Nenhum aluno encontrado.
+                    <td colSpan={3} className="p-0">
+                      <EmptyState
+                        icon={Users}
+                        title="Nenhum aluno encontrado"
+                        description={
+                          debounced
+                            ? "Tente outro termo de busca."
+                            : "Cadastre o primeiro aluno ao lado."
+                        }
+                        className="border-0 bg-transparent"
+                      />
                     </td>
                   </tr>
                 ) : (
                   items.map((r) => (
-                    <tr key={r.id} className="border-t border-border">
-                      <td className="px-3 py-2">
+                    <tr
+                      key={r.id}
+                      className="border-t border-border transition-colors hover:bg-muted/30"
+                    >
+                      <td className="px-3 py-2.5">
                         <Link
-                          className="font-medium underline-offset-4 hover:underline"
+                          className="font-medium text-primary underline-offset-4 hover:underline"
                           href={`/balcao/alunos/${r.id}`}
                         >
                           {r.fullName}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-xs">{formatCpf(r.cpf)}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
+                        {formatCpf(r.cpf)}
+                      </td>
+                      <td className="px-3 py-2.5">
                         <StudentStatusBadge status={r.status} />
                       </td>
                     </tr>
@@ -168,17 +183,21 @@ export default function AlunosPage() {
             </div>
           ) : null}
         </div>
+
         <div>
-          <h2 className="text-sm font-medium text-muted-foreground">
+          <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <UserPlus className="size-4" aria-hidden />
             Novo aluno
           </h2>
-          <div className="mt-2 rounded-lg border border-border p-4">
-            <NewStudentForm
-              onCreated={() => {
-                void query.refetch().catch(() => {});
-              }}
-            />
-          </div>
+          <Card className="mt-2">
+            <CardContent className="pt-5">
+              <NewStudentForm
+                onCreated={() => {
+                  void query.refetch().catch(() => {});
+                }}
+              />
+            </CardContent>
+          </Card>
         </div>
       </section>
     </main>

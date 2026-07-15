@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { WorkoutTemplatesManageClient } from "@/components/balcao/workout-templates-manage-client";
+import { PageHeader } from "@/components/ui/page-header";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -14,11 +15,12 @@ export default async function TreinosPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Modelos de treino</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Treinos pré-fixados para imprimir e entregar aos alunos. Atribua na ficha do aluno e
-        personalize exercícios quando necessário.
-      </p>
+      <PageHeader
+        title="Modelos de treino"
+        description="Treinos pré-fixados para imprimir e entregar aos alunos. Atribua na ficha do aluno e personalize exercícios quando necessário."
+        backHref="/balcao"
+        backLabel="Painel"
+      />
       <div className="mt-8">
         <WorkoutTemplatesManageClient isAdmin={isAdmin} />
       </div>

@@ -35,3 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 scripts/*.prod.mjs
+
+# Dados de alunos importados (contêm CPF/e-mail/telefone reais) — nunca versionar
+/scripts/data/
