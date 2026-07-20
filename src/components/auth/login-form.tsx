@@ -28,8 +28,12 @@ export function LoginForm({ subdomainSlug, initialSlug = "" }: LoginFormProps) {
   const nextPath = searchParams.get("next") ?? "/balcao";
   const isDemo = searchParams.get("demo") === "1";
 
-  const resolvedSlug = subdomainSlug ?? (isDemo ? DEMO.tenantSlug : initialSlug);
-  const slugLocked = Boolean(subdomainSlug || initialSlug || isDemo);
+  // ?demo=1 sempre usa a academia "demo", mesmo se o domínio principal
+  // (ex.: versatil.jwsoftware.com.br) tiver sido lido por engano como slug.
+  const resolvedSlug = isDemo
+    ? DEMO.tenantSlug
+    : (subdomainSlug ?? initialSlug);
+  const slugLocked = Boolean(isDemo || subdomainSlug || initialSlug);
 
   const [tenantSlug, setTenantSlug] = useState(resolvedSlug);
   const [email, setEmail] = useState(isDemo ? DEMO.email : "");
@@ -53,7 +57,7 @@ export function LoginForm({ subdomainSlug, initialSlug = "" }: LoginFormProps) {
     setError(null);
     setLoading(true);
     try {
-      const slug = (subdomainSlug ?? tenantSlug).trim();
+      const slug = (isDemo ? DEMO.tenantSlug : (subdomainSlug ?? tenantSlug)).trim();
       if (!slug) {
         setError("Informe o identificador da academia.");
         return;
@@ -100,7 +104,7 @@ export function LoginForm({ subdomainSlug, initialSlug = "" }: LoginFormProps) {
           {slugLocked && resolvedSlug ? (
             <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
               Academia: <strong>{resolvedSlug}</strong>
-              {subdomainSlug ? (
+              {subdomainSlug && !isDemo ? (
                 <span className="mt-1 block text-xs text-muted-foreground">
                   Identificada automaticamente pelo endereço do site.
                 </span>
