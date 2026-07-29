@@ -15,6 +15,7 @@ import {
 } from "../src/lib/db/schema";
 import { withBypassRlsTransaction } from "../src/lib/db/with-tenant";
 import { recalculateStudentStatus } from "../src/lib/services/student-status";
+import { tecnofitCodeRef } from "../src/lib/students/external-ref";
 import { DEFAULT_WORKOUT_PRESETS } from "../src/lib/workouts/presets";
 
 type ImportStudent = {
@@ -194,6 +195,9 @@ async function main() {
             fullName: s.fullName,
             email: s.email,
             whatsapp: s.whatsapp,
+            ...(s.codigo
+              ? { facialVectorRef: tecnofitCodeRef(s.codigo) }
+              : {}),
             updatedAt: new Date(),
           })
           .where(eq(students.id, existing.id));
@@ -209,6 +213,7 @@ async function main() {
           cpf: s.cpf,
           email: s.email,
           whatsapp: s.whatsapp,
+          facialVectorRef: s.codigo ? tecnofitCodeRef(s.codigo) : null,
           status: "inactive",
         })
         .returning({ id: students.id });

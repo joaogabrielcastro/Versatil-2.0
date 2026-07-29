@@ -79,14 +79,17 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
         <pre className="overflow-x-auto rounded-md border border-border bg-muted/40 p-3 text-xs">
 {`POST ${base}/api/turnstile/v1/access
 Header: x-tenant-device-token: <token do dispositivo>
-Body: { "studentId": "<uuid do aluno>" }
+Body (um deles):
+  { "studentCode": "76126" }     ← COD Tecnofit (catraca)
+  { "cpf": "10346680999" }
+  { "studentId": "<uuid>" }
 
 200 → { "open": true }
 403 → { "open": false, "message": "Aluno inadimplente." }`}
         </pre>
         <p className="text-xs text-muted-foreground">
-          O <code className="text-foreground">studentId</code> é o UUID do aluno no
-          Versátil (ficha do aluno na URL).
+          Preferência na academia: enviar o <code className="text-foreground">studentCode</code>{" "}
+          (COD da Tecnofit / presença). O UUID continua aceito na ficha do aluno.
         </p>
 
         <h3 className="text-sm font-medium">Dispositivos cadastrados</h3>

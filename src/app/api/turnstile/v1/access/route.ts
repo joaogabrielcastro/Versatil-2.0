@@ -1,17 +1,35 @@
 import { createHash } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accessEvents, students, turnstileDevices } from "@/lib/db/schema";
 import { getQueue } from "@/lib/queues/bull";
 import { getEnv } from "@/lib/env";
+import {
+  onlyDigits,
+  tecnofitCodeRef,
+} from "@/lib/students/external-ref";
 import { withBypassRlsTransaction, withTenantTransaction } from "@/lib/db/with-tenant";
 
 export const dynamic = "force-dynamic";
 
-const bodySchema = z.object({
-  studentId: z.string().uuid(),
-});
+/**
+ * Identificação do aluno (pelo menos um):
+ * - studentId: UUID do Versátil
+ * - studentCode / codigo: COD Tecnofit (ex.: "76126")
+ * - cpf: CPF com ou sem máscara
+ */
+const bodySchema = z
+  .object({
+    studentId: z.string().uuid().optional(),
+    studentCode: z.string().min(1).max(64).optional(),
+    codigo: z.string().min(1).max(64).optional(),
+    cpf: z.string().min(11).max(18).optional(),
+  })
+  .refine(
+    (b) => Boolean(b.studentId || b.studentCode || b.codigo || b.cpf),
+    { message: "Informe studentId, studentCode (ou codigo) ou cpf." },
+  );
 
 function hashToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
@@ -58,18 +76,51 @@ export async function POST(request: Request) {
   try {
     parsed = bodySchema.parse(await request.json());
   } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          "JSON inválido. Informe studentId (UUID), studentCode/codigo (COD Tecnofit) ou cpf.",
+      },
+      { status: 400 },
+    );
   }
 
+  const codeRaw = (parsed.studentCode ?? parsed.codigo)?.trim();
+  const cpfDigits = parsed.cpf ? onlyDigits(parsed.cpf) : "";
+
   const result = await withTenantTransaction(device.tenantId, async (tx) => {
-    const [student] = await tx
-      .select({
-        id: students.id,
-        status: students.status,
-      })
-      .from(students)
-      .where(eq(students.id, parsed.studentId))
-      .limit(1);
+    let student: { id: string; status: string } | null = null;
+
+    if (parsed.studentId) {
+      const [row] = await tx
+        .select({ id: students.id, status: students.status })
+        .from(students)
+        .where(eq(students.id, parsed.studentId))
+        .limit(1);
+      student = row ?? null;
+    } else if (codeRaw) {
+      const digits = onlyDigits(codeRaw) || codeRaw;
+      const ref = tecnofitCodeRef(codeRaw);
+      const [row] = await tx
+        .select({ id: students.id, status: students.status })
+        .from(students)
+        .where(
+          or(
+            eq(students.facialVectorRef, ref),
+            eq(students.facialVectorRef, digits),
+            eq(students.facialVectorRef, codeRaw),
+          ),
+        )
+        .limit(1);
+      student = row ?? null;
+    } else if (cpfDigits.length >= 11) {
+      const [row] = await tx
+        .select({ id: students.id, status: students.status })
+        .from(students)
+        .where(eq(students.cpf, cpfDigits))
+        .limit(1);
+      student = row ?? null;
+    }
 
     if (!student) {
       await tx.insert(accessEvents).values({

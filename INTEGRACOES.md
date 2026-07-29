@@ -21,13 +21,33 @@ POST {APP_URL}/api/turnstile/v1/access
 
 ### Corpo
 
+Informe **pelo menos um** identificador:
+
+```json
+{ "studentCode": "76126" }
+```
+
+ou
+
+```json
+{ "cpf": "10346680999" }
+```
+
+ou (UUID do Versátil)
+
 ```json
 {
   "studentId": "uuid-do-aluno-no-versatil"
 }
 ```
 
-O `studentId` aparece na URL da ficha do aluno: `/balcao/alunos/{studentId}`.
+| Campo | Uso |
+|--------|------|
+| `studentCode` ou `codigo` | **COD Tecnofit** (o mesmo da tela de presença / catraca) |
+| `cpf` | CPF do aluno (com ou sem máscara) |
+| `studentId` | UUID na ficha `/balcao/alunos/{id}` |
+
+No import de alunos, o COD Tecnofit é gravado automaticamente (`facial_vector_ref = tecnofit:{codigo}`).
 
 ### Respostas
 
@@ -36,7 +56,12 @@ O `studentId` aparece na URL da ficha do aluno: `/balcao/alunos/{studentId}`.
 | `200` | `{ "open": true }` | Aluno **ativo** — liberar catraca |
 | `403` | `{ "open": false, "message": "Aluno inadimplente." }` | Fatura vencida em aberto |
 | `403` | `{ "open": false, "message": "Aluno inativo." }` | Sem plano vigente |
+| `403` | `{ "open": false, "message": "Aluno não encontrado." }` | COD/CPF/UUID desconhecido |
 | `401` | Token inválido ou ausente | Dispositivo não cadastrado |
+
+### Gateway Control iD (academia Versátil Colombo)
+
+Hardware típico: **IdFace** (`192.168.0.76`) em modo On Line apontando para o PC da recepção. O gateway local deve, após o reconhecimento, chamar esta API com o **COD** do aluno e abrir/bloquear conforme `open`.
 
 ### Regras de negócio
 
