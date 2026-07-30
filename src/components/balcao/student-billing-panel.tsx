@@ -18,6 +18,7 @@ import {
   timelineEventLabel,
 } from "@/lib/labels";
 import { manualPaymentLabel } from "@/lib/billing/payment-methods";
+import { StudentMonthHistory } from "@/components/balcao/student-month-history";
 
 type Invoice = {
   id: string;
@@ -155,6 +156,9 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
             setSuccess(null);
           }}
         />
+      </div>
+      <div className="lg:col-span-2">
+        <StudentMonthHistory invoices={data.invoices} />
       </div>
       <div>
         <h3 className="text-sm font-medium">Nova fatura avulsa</h3>

@@ -16,7 +16,7 @@ export default async function PlanosPage() {
     <main className="mx-auto max-w-5xl px-6 py-10">
       <PageHeader
         title="Planos"
-        description="Planos de assinatura usados na ficha do aluno."
+        description="Planos por modalidade e valor (musculação, lutas, dança, spinning, CrossFit…). Edite o preço quando a academia mudar a mensalidade."
         backHref="/balcao"
         backLabel="Painel"
       />
