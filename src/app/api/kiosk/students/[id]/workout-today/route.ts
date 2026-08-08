@@ -4,6 +4,7 @@ import { z } from "zod";
 import { jsonError } from "@/lib/api/json";
 import { studentWorkouts, students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { assertKioskAccess } from "@/lib/kiosk/access";
 import { resolveKioskTenantId } from "@/lib/kiosk/resolve-tenant";
 import { pickWorkoutForToday } from "@/lib/workouts/pick-today";
 import type { WorkoutExercise } from "@/lib/workouts/types";
@@ -24,6 +25,9 @@ export async function GET(
   if (!resolved) {
     return jsonError(400, "Informe tenantSlug ou use o subdomínio da academia.");
   }
+
+  const denied = await assertKioskAccess(request, resolved.tenantId);
+  if (denied) return denied;
 
   const data = await withTenantTransaction(resolved.tenantId, async (tx) => {
     const [student] = await tx

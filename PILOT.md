@@ -18,7 +18,11 @@ No `.env` local (desenvolvimento):
 
 ## 2. Variáveis e base de dados
 
-Copia `.env.example` para `.env` e ajusta segredos (`JWT_SECRET`, `NEXTAUTH_SECRET` ≥ 32 caracteres).
+Copia [`.env.example`](./.env.example) para `.env` e ajusta segredos:
+
+- `JWT_SECRET`, `NEXTAUTH_SECRET` ≥ 32 caracteres
+- `KIOSK_ACCESS_SECRET` ≥ 16 (token do terminal de treino; **obrigatório em produção**)
+- `CRON_SECRET` ≥ 8 (para jobs de fatura/recálculo)
 
 Depois:
 
@@ -47,6 +51,7 @@ Smoke rápido (com o dev a correr):
 
 ```bash
 npm run pilot:check
+npm run deploy:smoke
 ```
 
 ## 4. Worker no Docker (opcional)
@@ -102,7 +107,7 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 | Modelos de treino | `/balcao/treinos` (pré-fixados, imprimíveis) |
 | Presença diária | `/balcao/presenca` e ficha do aluno (automático via catraca / facial) |
 | Relatórios | `/balcao/relatorios` — financeiro + presença por período, export CSV |
-| Terminal do aluno | `/imprimir-treino?slug=demo` — cupom 80mm para impressora térmica |
+| Terminal do aluno | `/imprimir-treino?slug=demo&token=…` — cupom 80mm (requer `KIOSK_ACCESS_SECRET`) |
 | Import CSV | `/balcao/importar` + worker |
 | Webhook gateway | `POST /api/webhooks/gateway` com Bearer `WEBHOOK_INGEST_SECRET` |
 | Catraca | `POST /api/turnstile/v1/access` — ver INTEGRACOES.md |
@@ -111,3 +116,31 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 ## 9. Produção (`npm run start`)
 
 Garante `SKIP_MIGRATIONS` **não** definido como `true` no processo do Next se quiseres migrações no arranque (`scripts/pre-start.mjs`). O worker deve usar `SKIP_MIGRATIONS=true` (já no Compose).
+
+Define em produção: `KIOSK_ACCESS_SECRET`, `CRON_SECRET`, e (recomendado) `PAYMENT_ENCRYPTION_KEY`.
+
+No GitHub: secrets **`APP_BASE_URL`** + **`CRON_SECRET`** — os workflows de fatura e recálculo correm diariamente (e também via *Run workflow*).
+
+## 10. Backup Postgres
+
+Dump local (requer `pg_dump` no PATH):
+
+```bash
+npm run db:backup
+```
+
+Via Docker Compose (serviço `postgres` a correr):
+
+```bash
+BACKUP_VIA_DOCKER=1 npm run db:backup
+```
+
+Ficheiros em `./backups/versatil-*.dump` (gitignored). Retenção: `BACKUP_KEEP` (default 14).
+
+Restaurar exemplo:
+
+```bash
+pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" backups/versatil-YYYYMMDD….dump
+```
+
+No Coolify/VPS, agenda o mesmo comando no cron do host (ex. diário 03:00) e copia os dumps para armazenamento externo.

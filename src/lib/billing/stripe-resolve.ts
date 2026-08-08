@@ -7,7 +7,6 @@ import { getEnv } from "@/lib/env";
 type TenantCreds = {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
-  asaasApiKey?: string;
 };
 
 /** Secret Stripe: variável global (MVP) ou credencial cifrada do tenant. */

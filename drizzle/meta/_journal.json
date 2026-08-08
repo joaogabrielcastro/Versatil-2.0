@@ -43,6 +43,27 @@
       "when": 1778596000000,
       "tag": "0005_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778597000000,
+      "tag": "0006_remove_asaas_gateway",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778598000000,
+      "tag": "0007_payment_provider_configs",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778599000000,
+      "tag": "0008_auto_renew_recurring",
+      "breakpoints": true
     }
   ]
 }

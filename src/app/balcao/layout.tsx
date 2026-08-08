@@ -3,6 +3,7 @@ import { BalcaoNav } from "@/components/balcao/balcao-nav";
 import { getSession } from "@/lib/auth/session";
 import { tenants } from "@/lib/db/schema";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
+import { getEnv } from "@/lib/env";
 
 export default async function BalcaoLayout({
   children,
@@ -11,6 +12,7 @@ export default async function BalcaoLayout({
 }) {
   const session = await getSession();
   const isAdmin = session?.role === "tenant_admin";
+  const kioskToken = getEnv().KIOSK_ACCESS_SECRET ?? "";
 
   let tenantSlug = "demo";
   if (session?.typ === "tenant" && session.tid) {
@@ -27,7 +29,11 @@ export default async function BalcaoLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <BalcaoNav isAdmin={isAdmin} tenantSlug={tenantSlug} />
+      <BalcaoNav
+        isAdmin={isAdmin}
+        tenantSlug={tenantSlug}
+        kioskToken={kioskToken}
+      />
       {children}
     </div>
   );

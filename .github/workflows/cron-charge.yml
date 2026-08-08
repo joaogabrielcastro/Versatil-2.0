@@ -1,0 +1,24 @@
+# Cobra automaticamente faturas em aberto de assinaturas com renovação automática (Pagar.me).
+# Secrets: APP_BASE_URL, CRON_SECRET
+name: Cron — charge open invoices
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 06:00 UTC ≈ 03:00 BRT (roda após a geração de faturas às 05:00 UTC)
+    - cron: "0 6 * * *"
+
+jobs:
+  charge-open-invoices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cobrar faturas em aberto (auto-renovação)
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$SECRET" ]; then
+            echo "Defina APP_BASE_URL e CRON_SECRET nos secrets do repositório."
+            exit 1
+          fi
+          curl -sS -f -H "Authorization: Bearer ${SECRET}" "${BASE%/}/api/cron/charge-open-invoices"

@@ -40,17 +40,17 @@ Marque todas que a academia quer usar no sistema:
 
 ## 3. Banco e intermediador de pagamento
 
-No Brasil o sistema integra com um **provedor** (Asaas, Efi, Mercado Pago, Stripe etc.), que envia o valor para a **conta PJ** da academia.
+No Brasil o sistema integra com um **provedor** (Stripe, ou maquininha Stone no balcão), que envia o valor para a **conta PJ** da academia.
 
 | # | Pergunta | Resposta |
 |---|----------|----------|
 | 3.1 | Banco da conta PJ da academia | |
-| 3.2 | Já usa algum intermediador? ( ) Asaas ( ) Efi ( ) Mercado Pago ( ) Stripe ( ) nenhum ( ) outro: ___ | |
+| 3.2 | Já usa algum intermediador? ( ) Stripe ( ) Stone (maquininha) ( ) nenhum ( ) outro: ___ | |
 | 3.3 | Aceita abrir conta no provedor que indicarmos? ( ) sim ( ) não | |
 | 3.4 | Quem cuida do contrato e taxas com o provedor? | |
 | 3.5 | Precisa de **nota fiscal** automática? ( ) sim ( ) não ( ) depois | |
 
-**Sugestão técnica (para alinhar na reunião):** Pix + boleto + recorrência no Brasil → costuma ser **Asaas** ou **Efi**. Cartão simples → **Stripe** (já parcialmente no sistema).
+**Sugestão técnica (para alinhar na reunião):** Plano C → cobrança no balcão + **maquininha Stone** (registro manual). Cartão online → **Stripe** (já parcialmente no sistema).
 
 ---
 

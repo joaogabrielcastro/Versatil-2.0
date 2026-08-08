@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FlashMessage } from "@/components/ui/flash-message";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PagarmeChargeButton } from "@/components/balcao/pagarme-charge-button";
+import { StoneChargeButton } from "@/components/balcao/stone-charge-button";
 import {
   MANUAL_PAYMENT_LABELS,
   MANUAL_PAYMENT_METHODS,
@@ -230,6 +232,8 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 >
                   Registrar pagamento
                 </Button>
+                <PagarmeChargeButton invoiceId={inv.invoiceId} />
+                <StoneChargeButton invoiceId={inv.invoiceId} />
               </div>
             </li>
           ))}

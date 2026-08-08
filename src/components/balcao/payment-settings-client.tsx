@@ -9,7 +9,6 @@ type Settings = {
   configured?: boolean;
   gateway: string | null;
   hasStripeSecret: boolean;
-  hasAsaasKey: boolean;
 };
 
 async function fetchSettings() {
@@ -23,10 +22,8 @@ async function fetchSettings() {
 export function PaymentSettingsClient() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["payment-settings"], queryFn: fetchSettings });
-  const [gateway, setGateway] = useState<"stripe" | "asaas">("stripe");
   const [stripeSecret, setStripeSecret] = useState("");
   const [stripeWebhook, setStripeWebhook] = useState("");
-  const [asaasKey, setAsaasKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -35,13 +32,9 @@ export function PaymentSettingsClient() {
     setBusy(true);
     setMsg(null);
     try {
-      const body: Record<string, string> = { gateway };
-      if (gateway === "stripe") {
-        if (stripeSecret) body.stripeSecretKey = stripeSecret;
-        if (stripeWebhook) body.stripeWebhookSecret = stripeWebhook;
-      } else if (asaasKey) {
-        body.asaasApiKey = asaasKey;
-      }
+      const body: Record<string, string> = { gateway: "stripe" };
+      if (stripeSecret) body.stripeSecretKey = stripeSecret;
+      if (stripeWebhook) body.stripeWebhookSecret = stripeWebhook;
       const res = await fetch("/api/tenant/payment-settings", {
         method: "PUT",
         credentials: "include",
@@ -55,7 +48,6 @@ export function PaymentSettingsClient() {
       }
       setStripeSecret("");
       setStripeWebhook("");
-      setAsaasKey("");
       setMsg("Guardado.");
       await qc.invalidateQueries({ queryKey: ["payment-settings"] });
     } finally {
@@ -75,67 +67,35 @@ export function PaymentSettingsClient() {
   return (
     <form onSubmit={(e) => void save(e)} className="max-w-lg space-y-4">
       <p className="text-sm text-muted-foreground">
-        Gateway atual:{" "}
-        <span className="font-medium text-foreground">
-          {s.gateway ?? "não definido"}
-        </span>
-        {s.hasStripeSecret ? " · Stripe (chave definida)" : null}
-        {s.hasAsaasKey ? " · Asaas (chave definida)" : null}
+        Provedor: <span className="font-medium text-foreground">Stripe</span>
+        {s.hasStripeSecret ? " · chave definida" : " · não configurado"}
       </p>
 
       <div>
-        <label className="text-sm font-medium">Provedor</label>
-        <select
-          className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-          value={gateway}
-          onChange={(e) => setGateway(e.target.value as "stripe" | "asaas")}
-        >
-          <option value="stripe">Stripe</option>
-          <option value="asaas">Asaas</option>
-        </select>
+        <label className="text-sm font-medium">Stripe secret key</label>
+        <Input
+          className="mt-1"
+          type="password"
+          autoComplete="off"
+          placeholder={s.hasStripeSecret ? "•••• (deixe vazio para manter)" : "sk_live_…"}
+          value={stripeSecret}
+          onChange={(e) => setStripeSecret(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Stripe webhook secret</label>
+        <Input
+          className="mt-1"
+          type="password"
+          autoComplete="off"
+          placeholder="whsec_…"
+          value={stripeWebhook}
+          onChange={(e) => setStripeWebhook(e.target.value)}
+        />
       </div>
 
-      {gateway === "stripe" ? (
-        <>
-          <div>
-            <label className="text-sm font-medium">Stripe secret key</label>
-            <Input
-              className="mt-1"
-              type="password"
-              autoComplete="off"
-              placeholder={s.hasStripeSecret ? "•••• (deixe vazio para manter)" : "sk_live_…"}
-              value={stripeSecret}
-              onChange={(e) => setStripeSecret(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Stripe webhook secret</label>
-            <Input
-              className="mt-1"
-              type="password"
-              autoComplete="off"
-              placeholder="whsec_…"
-              value={stripeWebhook}
-              onChange={(e) => setStripeWebhook(e.target.value)}
-            />
-          </div>
-        </>
-      ) : (
-        <div>
-          <label className="text-sm font-medium">Asaas API key</label>
-          <Input
-            className="mt-1"
-            type="password"
-            autoComplete="off"
-            placeholder={s.hasAsaasKey ? "•••• (deixe vazio para manter)" : ""}
-            value={asaasKey}
-            onChange={(e) => setAsaasKey(e.target.value)}
-          />
-        </div>
-      )}
-
       {msg ? (
-        <p className={`text-sm ${msg.startsWith("Erro") || msg.includes("Erro") ? "text-red-600" : "text-green-700"}`}>
+        <p className={`text-sm ${msg.includes("Erro") ? "text-red-600" : "text-green-700"}`}>
           {msg}
         </p>
       ) : null}

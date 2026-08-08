@@ -26,6 +26,11 @@ const envSchema = z.object({
   WEBHOOK_INGEST_SECRET: z.string().min(16).optional(),
   /** Bearer para POST /api/webhooks/stone (quando integração Stone estiver ativa) */
   STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
+  /**
+   * Token do terminal de impressão de treino (`x-kiosk-token` ou `?token=`).
+   * Em produção é obrigatório para `/api/kiosk/*` (sem secret → 503).
+   */
+  KIOSK_ACCESS_SECRET: z.string().min(16).optional(),
   /** 64 hex chars (32 bytes) — preferencial; senão deriva de JWT_SECRET (menos seguro) */
   PAYMENT_ENCRYPTION_KEY: z
     .string()

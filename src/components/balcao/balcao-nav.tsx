@@ -13,7 +13,12 @@ type NavLink = {
   external?: boolean;
 };
 
-function buildLinks(tenantSlug: string): NavLink[] {
+function buildLinks(tenantSlug: string, kioskToken: string): NavLink[] {
+  const terminalParams = new URLSearchParams({
+    slug: tenantSlug,
+  });
+  if (kioskToken) terminalParams.set("token", kioskToken);
+
   return [
     { href: "/balcao", label: "Painel", exact: true },
     { href: "/balcao/alunos", label: "Alunos" },
@@ -23,7 +28,7 @@ function buildLinks(tenantSlug: string): NavLink[] {
     { href: "/balcao/planos", label: "Planos" },
     { href: "/balcao/relatorios", label: "Relatórios" },
     {
-      href: `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`,
+      href: `/imprimir-treino?${terminalParams.toString()}`,
       label: "Terminal",
       external: true,
     },
@@ -32,20 +37,24 @@ function buildLinks(tenantSlug: string): NavLink[] {
 
 const adminLinks: NavLink[] = [
   { href: "/balcao/configuracoes/usuarios", label: "Usuários" },
+  { href: "/balcao/configuracoes/pagamentos", label: "Pagamentos" },
   { href: "/balcao/configuracoes/integracoes", label: "Integrações" },
 ];
 
 export function BalcaoNav({
   isAdmin = false,
   tenantSlug = "demo",
+  kioskToken = "",
 }: {
   isAdmin?: boolean;
   tenantSlug?: string;
+  /** Token do terminal (KIOSK_ACCESS_SECRET) para abrir o link já autorizado */
+  kioskToken?: string;
 }) {
   const pathname = usePathname();
   const links = isAdmin
-    ? [...buildLinks(tenantSlug), ...adminLinks]
-    : buildLinks(tenantSlug);
+    ? [...buildLinks(tenantSlug, kioskToken), ...adminLinks]
+    : buildLinks(tenantSlug, kioskToken);
 
   return (
     <nav className="balcao-nav sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">

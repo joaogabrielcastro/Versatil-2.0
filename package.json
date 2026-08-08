@@ -25,6 +25,7 @@
     "pilot:setup": "node scripts/pilot-setup.mjs",
     "pilot:check": "node scripts/pilot-check.mjs",
     "deploy:smoke": "node scripts/deploy-smoke.mjs",
+    "db:backup": "node scripts/backup-postgres.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "icons:generate": "node scripts/generate-pwa-icons.mjs"

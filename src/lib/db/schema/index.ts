@@ -45,7 +45,6 @@ export const billingIntervalEnum = pgEnum("billing_interval", [
 
 export const paymentGatewayEnum = pgEnum("payment_gateway", [
   "stripe",
-  "asaas",
 ]);
 
 export const importJobStatusEnum = pgEnum("import_job_status", [
@@ -178,6 +177,13 @@ export const studentSubscriptions = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
+    /** Renovação automática: cobra o cartão salvo a cada fatura em aberto. */
+    autoRenew: boolean("auto_renew").notNull().default(false),
+    /** Provedor usado para a recorrência (ex.: "pagarme"). */
+    provider: varchar("provider", { length: 32 }),
+    /** IDs do provedor para o cartão salvo. */
+    externalCustomerId: varchar("external_customer_id", { length: 255 }),
+    externalCardId: varchar("external_card_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -208,6 +214,12 @@ export const invoices = pgTable(
     settlementSource: settlementSourceEnum("settlement_source"),
     externalId: varchar("external_id", { length: 255 }),
     idempotencyKey: varchar("idempotency_key", { length: 255 }),
+    /** Recorrência automática: nº de tentativas de cobrança e backoff. */
+    chargeAttempts: integer("charge_attempts").notNull().default(0),
+    nextChargeAttemptAt: timestamp("next_charge_attempt_at", {
+      withTimezone: true,
+    }),
+    lastChargeError: text("last_charge_error"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -263,6 +275,39 @@ export const tenantPaymentSettings = pgTable(
       .defaultNow(),
   },
   (t) => [index("tenant_payment_settings_tenant_idx").on(t.tenantId)],
+);
+
+/**
+ * Configuração de provedores de pagamento por tenant (multi-provider).
+ * Ex.: `pagarme` (online/recorrência), `stone_connect` (maquininha).
+ * Credenciais ficam cifradas em `encryptedCredentials`.
+ */
+export const paymentProviderConfigs = pgTable(
+  "payment_provider_configs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 32 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    encryptedCredentials: text("encrypted_credentials").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("payment_provider_configs_tenant_provider").on(
+      t.tenantId,
+      t.provider,
+    ),
+    index("payment_provider_configs_tenant_idx").on(t.tenantId),
+  ],
 );
 
 export const turnstileDevices = pgTable(

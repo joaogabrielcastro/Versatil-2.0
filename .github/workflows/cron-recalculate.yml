@@ -4,9 +4,9 @@ name: Cron — recalculate students
 
 on:
   workflow_dispatch:
-  # Descomenta para correr todos os dias às 06:15 UTC (ajusta o cron):
-  # schedule:
-  #   - cron: "15 6 * * *"
+  schedule:
+    # 06:15 UTC ≈ 03:15 BRT — após geração de faturas
+    - cron: "15 6 * * *"
 
 jobs:
   recalculate:

@@ -19,6 +19,7 @@ import {
 } from "@/lib/labels";
 import { manualPaymentLabel } from "@/lib/billing/payment-methods";
 import { StudentMonthHistory } from "@/components/balcao/student-month-history";
+import { AutoRenewPanel } from "@/components/balcao/auto-renew-panel";
 
 type Invoice = {
   id: string;
@@ -251,6 +252,9 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
+        <div className="mt-6">
+          <AutoRenewPanel studentId={studentId} />
+        </div>
         <h3 className="mt-6 text-sm font-medium">Linha do tempo</h3>
         <ul className="mt-2 max-h-80 space-y-2 overflow-y-auto text-sm">
           {data.timeline.length === 0 ? (

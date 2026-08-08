@@ -71,7 +71,10 @@ npm run pilot:check
 - **Relatórios** — financeiro + presença por período, exportar CSV
 
 ### 7. Terminal do aluno (2 min)
-- Abrir **Terminal aluno** (nova aba)
+- Abrir **Terminal** no menu do balcão (já leva `?token=` se `KIOSK_ACCESS_SECRET` estiver no `.env`)
+- Ou URL: `/imprimir-treino?slug=demo&token=SEU_KIOSK_ACCESS_SECRET`
+- Digitar pelo menos 2 letras do nome → escolher na lista → imprimir cupom
+- O terminal **não** lista todos os alunos de uma vez (busca sob demanda)
 - Buscar aluno com treino → imprimir cupom 80 mm
 - Impacto visual forte na apresentação
 

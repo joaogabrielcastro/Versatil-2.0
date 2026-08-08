@@ -26,6 +26,13 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: "01234567890123456789012345678901"
+      NEXTAUTH_SECRET: "01234567890123456789012345678901"
+      KIOSK_ACCESS_SECRET: "ci-kiosk-token-16chars"
+      CRON_SECRET: "ci-cron-secret"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,9 +42,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: Unit tests
+        run: npm test
       - run: npm run build
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
-          REDIS_URL: redis://127.0.0.1:6379
-          JWT_SECRET: "01234567890123456789012345678901"
-          NEXTAUTH_SECRET: "01234567890123456789012345678901"

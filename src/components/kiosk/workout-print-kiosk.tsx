@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PrintWorkoutSheet } from "@/components/balcao/print-workout-sheet";
 import { AppShellHeader } from "@/components/brand/app-shell-header";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,26 @@ type WorkoutToday = {
   exercises: WorkoutExercise[];
 };
 
+function kioskQuery(slug: string, token: string, extra: Record<string, string>) {
+  const params = new URLSearchParams({
+    tenantSlug: slug.trim(),
+    ...extra,
+  });
+  if (token.trim()) params.set("token", token.trim());
+  return params.toString();
+}
+
 export function WorkoutPrintKiosk({
   initialSlug,
   slugFromSubdomain,
+  initialToken,
 }: {
   initialSlug: string;
   slugFromSubdomain: boolean;
+  initialToken: string;
 }) {
   const [tenantSlug, setTenantSlug] = useState(initialSlug);
+  const [kioskToken, setKioskToken] = useState(initialToken);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [nameFilter, setNameFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -35,46 +47,57 @@ export function WorkoutPrintKiosk({
   const [loadingList, setLoadingList] = useState(false);
   const [loadingWorkout, setLoadingWorkout] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const searchSeq = useRef(0);
 
   const slugReady = tenantSlug.trim().length >= 2;
 
-  const loadStudents = useCallback(async () => {
-    if (!slugReady) return;
-    setLoadingList(true);
-    setError(null);
-    setStudents([]);
-    setSelectedId("");
-    setWorkout(null);
-    setShowPrint(false);
-    try {
-      const res = await fetch(
-        `/api/kiosk/students?tenantSlug=${encodeURIComponent(tenantSlug.trim())}`,
-      );
-      const j = (await res.json()) as {
-        error?: string;
-        items?: StudentOption[];
-      };
-      if (!res.ok) {
-        setError(j.error ?? "Não foi possível carregar os nomes.");
+  const searchStudents = useCallback(
+    async (q: string) => {
+      if (!slugReady) return;
+      const trimmed = q.trim();
+      if (trimmed.length < 2) {
+        setStudents([]);
         return;
       }
-      setStudents(j.items ?? []);
-    } catch {
-      setError("Erro de rede. Tente de novo.");
-    } finally {
-      setLoadingList(false);
-    }
-  }, [tenantSlug, slugReady]);
+
+      const seq = ++searchSeq.current;
+      setLoadingList(true);
+      setError(null);
+      try {
+        const qs = kioskQuery(tenantSlug, kioskToken, { q: trimmed });
+        const res = await fetch(`/api/kiosk/students?${qs}`, {
+          headers: kioskToken.trim()
+            ? { "x-kiosk-token": kioskToken.trim() }
+            : undefined,
+        });
+        const j = (await res.json()) as {
+          error?: string;
+          items?: StudentOption[];
+        };
+        if (seq !== searchSeq.current) return;
+        if (!res.ok) {
+          setError(j.error ?? "Não foi possível buscar nomes.");
+          setStudents([]);
+          return;
+        }
+        setStudents(j.items ?? []);
+      } catch {
+        if (seq !== searchSeq.current) return;
+        setError("Erro de rede. Tente de novo.");
+        setStudents([]);
+      } finally {
+        if (seq === searchSeq.current) setLoadingList(false);
+      }
+    },
+    [tenantSlug, kioskToken, slugReady],
+  );
 
   useEffect(() => {
-    if (slugReady) void loadStudents();
-  }, [slugReady, loadStudents]);
-
-  const filtered = useMemo(() => {
-    const q = nameFilter.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter((s) => s.fullName.toLowerCase().includes(q));
-  }, [students, nameFilter]);
+    const t = window.setTimeout(() => {
+      void searchStudents(nameFilter);
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [nameFilter, searchStudents]);
 
   async function loadWorkoutForStudent(studentId: string) {
     if (!slugReady || !studentId) return;
@@ -83,8 +106,14 @@ export function WorkoutPrintKiosk({
     setWorkout(null);
     setShowPrint(false);
     try {
+      const qs = kioskQuery(tenantSlug, kioskToken, {});
       const res = await fetch(
-        `/api/kiosk/students/${studentId}/workout-today?tenantSlug=${encodeURIComponent(tenantSlug.trim())}`,
+        `/api/kiosk/students/${studentId}/workout-today?${qs}`,
+        {
+          headers: kioskToken.trim()
+            ? { "x-kiosk-token": kioskToken.trim() }
+            : undefined,
+        },
       );
       const j = (await res.json()) as {
         error?: string;
@@ -122,11 +151,13 @@ export function WorkoutPrintKiosk({
       onSelectStudent(exact.id);
       return;
     }
-    if (filtered.length === 1) {
-      onSelectStudent(filtered[0]!.id);
+    if (students.length === 1) {
+      onSelectStudent(students[0]!.id);
       return;
     }
-    setError("Selecione seu nome na lista ou toque no nome correto abaixo.");
+    setError(
+      "Digite mais letras do nome e toque no nome correto na lista.",
+    );
   }
 
   return (
@@ -135,8 +166,8 @@ export function WorkoutPrintKiosk({
         title="Treino do dia"
         subtitle={
           dayLabel
-            ? `Escolha seu nome e imprima o cupom · ${dayLabel}`
-            : "Escolha seu nome e imprima o treino de hoje"
+            ? `Digite seu nome e imprima o cupom · ${dayLabel}`
+            : "Digite seu nome e imprima o treino de hoje"
         }
       />
 
@@ -150,9 +181,21 @@ export function WorkoutPrintKiosk({
               placeholder="demo"
             />
           </label>
-          <Button type="button" variant="outline" onClick={() => void loadStudents()}>
-            Carregar nomes
-          </Button>
+        </div>
+      ) : null}
+
+      {!initialToken ? (
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Token do terminal
+            <Input
+              type="password"
+              value={kioskToken}
+              onChange={(e) => setKioskToken(e.target.value)}
+              placeholder="Definido em KIOSK_ACCESS_SECRET"
+              autoComplete="off"
+            />
+          </label>
         </div>
       ) : null}
 
@@ -161,7 +204,7 @@ export function WorkoutPrintKiosk({
           <span className="font-medium text-lg">Seu nome</span>
           <Input
             className="h-12 text-lg"
-            placeholder="Digite ou escolha na lista…"
+            placeholder="Digite ao menos 2 letras…"
             value={nameFilter}
             onChange={(e) => {
               setNameFilter(e.target.value);
@@ -175,29 +218,23 @@ export function WorkoutPrintKiosk({
                 onConfirmName();
               }
             }}
-            list="kiosk-student-names"
             autoComplete="off"
           />
-          <datalist id="kiosk-student-names">
-            {students.map((s) => (
-              <option key={s.id} value={s.fullName} />
-            ))}
-          </datalist>
         </label>
 
         {loadingList ? (
-          <p className="text-sm text-muted-foreground">Carregando nomes…</p>
+          <p className="text-sm text-muted-foreground">Buscando…</p>
+        ) : nameFilter.trim().length >= 2 && students.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum nome correspondente.</p>
         ) : students.length > 0 ? (
           <p className="text-xs text-muted-foreground">
-            {students.length} aluno(s) cadastrado(s)
+            {students.length} correspondente(s) — toque no seu nome
           </p>
-        ) : slugReady ? (
-          <p className="text-sm text-muted-foreground">Nenhum aluno encontrado.</p>
         ) : null}
 
-        {nameFilter.trim() && filtered.length > 0 && filtered.length <= 12 ? (
+        {students.length > 0 ? (
           <ul className="grid gap-2 sm:grid-cols-2">
-            {filtered.map((s) => (
+            {students.map((s) => (
               <li key={s.id}>
                 <button
                   type="button"
@@ -218,7 +255,7 @@ export function WorkoutPrintKiosk({
         <Button
           type="button"
           className="h-12 w-full text-base"
-          disabled={loadingWorkout || !nameFilter.trim()}
+          disabled={loadingWorkout || nameFilter.trim().length < 2}
           onClick={() => onConfirmName()}
         >
           {loadingWorkout ? "Buscando treino…" : "Ver treino do dia"}
@@ -259,6 +296,7 @@ export function WorkoutPrintKiosk({
                     setNameFilter("");
                     setSelectedId("");
                     setWorkout(null);
+                    setStudents([]);
                     setError(null);
                   }}
                 >

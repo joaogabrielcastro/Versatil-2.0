@@ -14,14 +14,12 @@ export const dynamic = "force-dynamic";
 type TenantCreds = {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
-  asaasApiKey?: string;
 };
 
 const putSchema = z.object({
-  gateway: z.enum(["stripe", "asaas"]),
+  gateway: z.enum(["stripe"]),
   stripeSecretKey: z.string().optional(),
   stripeWebhookSecret: z.string().optional(),
-  asaasApiKey: z.string().optional(),
 });
 
 export async function GET() {
@@ -48,12 +46,10 @@ export async function GET() {
       configured: false,
       gateway: null,
       hasStripeSecret: false,
-      hasAsaasKey: false,
     });
   }
 
   let hasStripeSecret = false;
-  let hasAsaasKey = false;
   try {
     const key = getPaymentSecretKey(getEnv());
     const creds = decryptJson<TenantCreds>(
@@ -61,7 +57,6 @@ export async function GET() {
       key,
     );
     hasStripeSecret = Boolean(creds.stripeSecretKey?.length);
-    hasAsaasKey = Boolean(creds.asaasApiKey?.length);
   } catch {
     /* ignore */
   }
@@ -70,7 +65,6 @@ export async function GET() {
     configured: true,
     gateway: row.gateway,
     hasStripeSecret,
-    hasAsaasKey,
     updatedAt: row.updatedAt,
   });
 }
@@ -114,7 +108,6 @@ export async function PUT(request: Request) {
     if (body.stripeWebhookSecret) {
       merged.stripeWebhookSecret = body.stripeWebhookSecret;
     }
-    if (body.asaasApiKey) merged.asaasApiKey = body.asaasApiKey;
 
     const blob = encryptJson(merged, key);
     const now = new Date();
