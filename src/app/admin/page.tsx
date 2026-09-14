@@ -20,6 +20,8 @@ export default function AdminPage() {
   const q = useQuery({ queryKey: ["admin-tenants"], queryFn: fetchTenants });
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +34,12 @@ export default function AdminPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), slug: slug.trim().toLowerCase() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          slug: slug.trim().toLowerCase(),
+          adminEmail: adminEmail.trim(),
+          adminPassword,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -41,8 +48,10 @@ export default function AdminPage() {
       }
       setName("");
       setSlug("");
+      setAdminEmail("");
+      setAdminPassword("");
       await qc.invalidateQueries({ queryKey: ["admin-tenants"] });
-      setMsg("Tenant criado.");
+      setMsg("Academia e administrador criados.");
     } finally {
       setBusy(false);
     }
@@ -68,6 +77,21 @@ export default function AdminPage() {
         <form onSubmit={(e) => void createTenant(e)} className="mt-2 flex max-w-md flex-col gap-2">
           <Input placeholder="Nome da academia" value={name} onChange={(e) => setName(e.target.value)} required />
           <Input placeholder="slug (ex: nova-unidade)" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+          <Input
+            type="email"
+            placeholder="E-mail do administrador"
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            required
+          />
+          <Input
+            type="password"
+            placeholder="Senha do administrador (mín. 8)"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            minLength={8}
+            required
+          />
           {msg ? <p className="text-sm text-muted-foreground">{msg}</p> : null}
           <Button type="submit" disabled={busy}>
             Criar

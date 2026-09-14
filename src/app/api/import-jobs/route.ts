@@ -115,7 +115,9 @@ export async function POST(request: Request) {
       mapping,
       rows,
     },
-    { removeOnComplete: 100, removeOnFail: 50 },
+    {
+      jobId: `import:${tenantId}:${job.id}`,
+    },
   );
 
   return NextResponse.json(

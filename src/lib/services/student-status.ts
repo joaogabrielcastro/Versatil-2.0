@@ -42,7 +42,9 @@ export async function recalculateStudentStatus(
       await tx
         .update(students)
         .set({ status: "delinquent", updatedAt: now })
-        .where(eq(students.id, studentId));
+        .where(
+          and(eq(students.id, studentId), eq(students.tenantId, tenantId)),
+        );
       return "delinquent";
     }
 
@@ -71,7 +73,9 @@ export async function recalculateStudentStatus(
     await tx
       .update(students)
       .set({ status: next, updatedAt: now })
-      .where(eq(students.id, studentId));
+      .where(
+        and(eq(students.id, studentId), eq(students.tenantId, tenantId)),
+      );
     return next;
   });
 }

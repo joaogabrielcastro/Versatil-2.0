@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   if (!resolved) {
     return jsonError(
       400,
-      "Informe tenantSlug (ex.: demo) ou acesse pelo subdomínio da academia.",
+      "Informe tenantSlug ou acesse pelo subdomínio da academia.",
     );
   }
 

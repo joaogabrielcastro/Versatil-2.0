@@ -7,6 +7,9 @@ export function getPaymentSecretKey(env: Env): Buffer {
   if (env.PAYMENT_ENCRYPTION_KEY) {
     return Buffer.from(env.PAYMENT_ENCRYPTION_KEY, "hex");
   }
+  if (env.NODE_ENV === "production") {
+    throw new Error("PAYMENT_ENCRYPTION_KEY é obrigatória em produção.");
+  }
   return scryptSync(env.JWT_SECRET, "tecnofit-payment-v1", 32);
 }
 

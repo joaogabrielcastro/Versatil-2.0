@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import Redis from "ioredis";
 import { getEnv } from "@/lib/env";
+import { DEFAULT_JOB_OPTS } from "./job-options";
 import { QUEUE_NAMES } from "./names";
 
 const queues = new Map<string, Queue>();
@@ -12,7 +13,7 @@ export function getQueue(name: keyof typeof QUEUE_NAMES): Queue {
     const connection = new Redis(getEnv().REDIS_URL, {
       maxRetriesPerRequest: null,
     });
-    q = new Queue(qn, { connection });
+    q = new Queue(qn, { connection, defaultJobOptions: DEFAULT_JOB_OPTS });
     queues.set(qn, q);
   }
   return q;

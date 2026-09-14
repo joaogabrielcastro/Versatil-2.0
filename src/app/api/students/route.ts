@@ -6,13 +6,14 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { parseCpfInput } from "@/lib/cpf";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 
 export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
   fullName: z.string().min(2).max(255),
-  cpf: z.string().min(11).max(14),
+  cpf: z.string().min(11).max(18),
   email: z.union([z.string().email(), z.literal("")]).optional(),
   whatsapp: z.string().max(32).optional().nullable(),
   birthDate: z.string().optional().nullable(),
@@ -107,6 +108,11 @@ export async function POST(request: Request) {
   const email =
     body.email && body.email.length > 0 ? body.email : null;
 
+  const cpf = parseCpfInput(body.cpf);
+  if (!cpf) {
+    return jsonError(400, "CPF inválido. Informe 11 dígitos.");
+  }
+
   try {
     const [created] = await withTenantTransaction(tenantId, async (tx) => {
       const [row] = await tx
@@ -114,7 +120,7 @@ export async function POST(request: Request) {
         .values({
           tenantId,
           fullName: body.fullName,
-          cpf: body.cpf,
+          cpf,
           email,
           whatsapp: body.whatsapp ?? null,
           birthDate,

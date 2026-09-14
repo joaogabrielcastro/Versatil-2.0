@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CreditCard,
   DoorOpen,
+  Package,
   TrendingUp,
   Users,
   type LucideIcon,
@@ -16,7 +17,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { getSession } from "@/lib/auth/session";
 import { roleLabel } from "@/lib/labels";
-import { accessEvents, invoices, students, tenants } from "@/lib/db/schema";
+import {
+  accessEvents,
+  invoices,
+  products,
+  students,
+  tenants,
+} from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 
 export const dynamic = "force-dynamic";
@@ -49,21 +56,27 @@ export default async function BalcaoDashboardPage() {
     overdueCount,
     overdueCents,
     paidMonthCents,
+    lowStockCount,
   ] = await withTenantTransaction(tenantId, async (tx) => {
     const [t] = await tx
       .select({ name: tenants.name, slug: tenants.slug })
       .from(tenants)
       .where(eq(tenants.id, tenantId))
       .limit(1);
-    const [total] = await tx.select({ n: count() }).from(students);
+        const [total] = await tx
+      .select({ n: count() })
+      .from(students)
+      .where(eq(students.tenantId, tenantId));
     const [active] = await tx
       .select({ n: count() })
       .from(students)
-      .where(eq(students.status, "active"));
+      .where(and(eq(students.tenantId, tenantId), eq(students.status, "active")));
     const [delinquent] = await tx
       .select({ n: count() })
       .from(students)
-      .where(eq(students.status, "delinquent"));
+      .where(
+        and(eq(students.tenantId, tenantId), eq(students.status, "delinquent")),
+      );
     const [visits] = await tx
       .select({ n: count() })
       .from(accessEvents)
@@ -99,6 +112,16 @@ export default async function BalcaoDashboardPage() {
           gte(invoices.paidAt, startOfMonth),
         ),
       );
+    const [lowStock] = await tx
+      .select({ n: count() })
+      .from(products)
+      .where(
+        and(
+          eq(products.tenantId, tenantId),
+          eq(products.active, true),
+          sql`${products.quantityOnHand} <= ${products.lowStockThreshold}`,
+        ),
+      );
 
     return [
       t,
@@ -109,11 +132,12 @@ export default async function BalcaoDashboardPage() {
       Number(overdue?.n ?? 0),
       Number(overdue?.cents ?? 0),
       Number(paidMonth?.cents ?? 0),
+      Number(lowStock?.n ?? 0),
     ];
   });
 
   const tenantName = tenant?.name ?? "Academia";
-  const tenantSlug = tenant?.slug ?? "demo";
+  const tenantSlug = tenant?.slug ?? "";
   const kioskHref = `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`;
 
   const shortcuts = [
@@ -121,8 +145,11 @@ export default async function BalcaoDashboardPage() {
     { href: "/balcao/cobranca", label: "Cobrança" },
     { href: "/balcao/presenca", label: "Presença" },
     { href: "/balcao/treinos", label: "Treinos" },
+    { href: "/balcao/estoque", label: "Estoque" },
     { href: "/balcao/relatorios", label: "Relatórios" },
-    { href: kioskHref, label: "Terminal aluno" },
+    ...(tenantSlug
+      ? [{ href: kioskHref, label: "Terminal aluno" }]
+      : []),
   ];
 
   return (
@@ -140,7 +167,7 @@ export default async function BalcaoDashboardPage() {
         <StatCard label="Entradas hoje" value={visitsToday} icon={DoorOpen} />
       </section>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-start justify-between gap-3">
@@ -176,6 +203,34 @@ export default async function BalcaoDashboardPage() {
               </div>
               <div className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-700">
                 <AlertTriangle className="size-4" aria-hidden />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={lowStockCount > 0 ? "border-amber-200" : undefined}>
+          <CardContent className="pt-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Estoque baixo</p>
+                <p
+                  className={`mt-1 text-2xl font-semibold tabular-nums ${
+                    lowStockCount > 0 ? "text-amber-700" : "text-foreground"
+                  }`}
+                >
+                  {lowStockCount}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  produto(s) no limite —{" "}
+                  <Link
+                    href="/balcao/estoque"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    ver estoque
+                  </Link>
+                </p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                <Package className="size-4" aria-hidden />
               </div>
             </div>
           </CardContent>

@@ -84,7 +84,12 @@ export async function PATCH(
     const [row] = await tx
       .update(workoutTemplates)
       .set(patch)
-      .where(eq(workoutTemplates.id, id))
+      .where(
+        and(
+          eq(workoutTemplates.id, id),
+          eq(workoutTemplates.tenantId, tenantId),
+        ),
+      )
       .returning();
     return row ?? null;
   });

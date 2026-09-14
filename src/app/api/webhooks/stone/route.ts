@@ -1,35 +1,49 @@
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
-import { webhookDedupe } from "@/lib/db/schema";
-import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
+import { invoices } from "@/lib/db/schema";
+import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { getEnv } from "@/lib/env";
 import { stoneWebhookBodySchema } from "@/lib/integrations/stone-webhook";
-import { getQueue } from "@/lib/queues/bull";
+import {
+  getProviderConfig,
+  type StoneConnectCredentials,
+} from "@/lib/payments/config";
+import {
+  connectWebhookAmountCents,
+  connectWebhookChargeId,
+  normalizeStoneConnectWebhook,
+  verifyStoneConnectWebhookSignature,
+} from "@/lib/payments/providers/stone/connect-webhook";
+import { getTenantIdBySlug } from "@/lib/tenant/resolve";
+import { ingestWebhookEvent } from "@/lib/webhooks/ingest";
+import { requireConfiguredBearer } from "@/lib/webhooks/require-bearer";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Webhook Stone — Fase 2 (estrutura pronta).
- * Configure STONE_WEBHOOK_SECRET no .env quando tiver credenciais Stone.
- *
- * Payload esperado (contrato interno):
- * {
- *   "tenantId": "uuid",
- *   "eventId": "id-unico-do-evento-stone",
- *   "type": "invoice.paid" | "invoice.payment_failed",
- *   "invoiceId": "uuid-da-fatura-no-versatil",
- *   "stoneChargeId": "opcional",
- *   "raw": { ...payload original Stone }
- * }
+ * Confirmação Stone:
+ * 1) Contrato interno mapeado + Bearer STONE_WEBHOOK_SECRET
+ * 2) Envelope Core v5 do Connect (`X-Hub-Signature`) + credencial do tenant
  */
 export async function POST(request: Request) {
-  const secret = getEnv().STONE_WEBHOOK_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return jsonError(401, "Não autorizado.");
-    }
+  const signature =
+    request.headers.get("x-hub-signature") ??
+    request.headers.get("x-hub-signature-256");
+
+  if (signature) {
+    return handleConnectCoreWebhook(request, signature);
+  }
+
+  const authz = requireConfiguredBearer(
+    getEnv().STONE_WEBHOOK_SECRET,
+    request.headers.get("authorization"),
+    "STONE_WEBHOOK_SECRET não configurado.",
+  );
+  if (!authz.ok) {
+    return jsonError(authz.status, authz.error);
   }
 
   let body: unknown;
@@ -44,42 +58,133 @@ export async function POST(request: Request) {
     return jsonError(400, "Payload inválido. Ver INTEGRACOES.md (Stone).");
   }
 
-  const data = parsed.data;
-
-  const inserted = await withBypassRlsTransaction(async (tx) => {
-    return tx
-      .insert(webhookDedupe)
-      .values({
-        tenantId: data.tenantId,
-        provider: "stone",
-        eventId: data.eventId,
-      })
-      .onConflictDoNothing({
-        target: [
-          webhookDedupe.tenantId,
-          webhookDedupe.provider,
-          webhookDedupe.eventId,
-        ],
-      })
-      .returning({ id: webhookDedupe.id });
+  return enqueueVerifiedStoneEvent({
+    tenantId: parsed.data.tenantId,
+    eventId: parsed.data.eventId,
+    type: parsed.data.type,
+    invoiceId: parsed.data.invoiceId,
+    stoneChargeId: parsed.data.stoneChargeId,
+    amountCents: parsed.data.amountCents,
+    raw: parsed.data.raw ?? body,
   });
+}
 
-  if (inserted.length === 0) {
-    return NextResponse.json({ ok: true, deduped: true });
+async function handleConnectCoreWebhook(request: Request, signature: string) {
+  const url = new URL(request.url);
+  const tenantIdParam = url.searchParams.get("tenantId");
+  const tenantSlug = url.searchParams.get("tenantSlug");
+
+  let tenantId: string | null = null;
+  if (tenantIdParam && z.string().uuid().safeParse(tenantIdParam).success) {
+    tenantId = tenantIdParam;
+  } else if (tenantSlug) {
+    tenantId = await getTenantIdBySlug(tenantSlug.toLowerCase());
+  }
+  if (!tenantId) {
+    return jsonError(
+      400,
+      "Informe tenantId ou tenantSlug na URL do webhook Connect.",
+    );
   }
 
-  await getQueue("webhooks").add(
-    "stone",
-    {
-      tenantId: data.tenantId,
-      provider: "stone" as const,
-      eventId: data.eventId,
-      type: data.type,
-      invoiceId: data.invoiceId,
-      raw: data.raw ?? body,
-    },
-    { removeOnComplete: 100, removeOnFail: 50 },
+  const cfg = await getProviderConfig<StoneConnectCredentials>(
+    tenantId,
+    "stone_connect",
   );
+  const secret = cfg?.credentials.webhookSecret;
+  if (!secret) {
+    return jsonError(
+      503,
+      "Webhook HMAC do Stone Connect não configurado para o tenant.",
+    );
+  }
+
+  const rawBody = await request.text();
+  if (!verifyStoneConnectWebhookSignature(rawBody, signature, secret)) {
+    return jsonError(401, "Assinatura do webhook inválida.");
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch {
+    return jsonError(400, "JSON inválido.");
+  }
+
+  const event = normalizeStoneConnectWebhook(
+    parsedBody as Parameters<typeof normalizeStoneConnectWebhook>[0],
+  );
+  if (!event?.invoiceId) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
+  return enqueueVerifiedStoneEvent({
+    tenantId,
+    eventId: event.eventId,
+    type: event.type,
+    invoiceId: event.invoiceId,
+    stoneChargeId: connectWebhookChargeId(
+      parsedBody as Parameters<typeof connectWebhookChargeId>[0],
+    ),
+    amountCents: connectWebhookAmountCents(
+      parsedBody as Parameters<typeof connectWebhookAmountCents>[0],
+    ),
+    raw: event.raw,
+  });
+}
+
+async function enqueueVerifiedStoneEvent(data: {
+  tenantId: string;
+  eventId: string;
+  type: string;
+  invoiceId: string;
+  stoneChargeId?: string;
+  amountCents?: number;
+  raw: unknown;
+}) {
+  const invoice = await withTenantTransaction(data.tenantId, async (tx) => {
+    const [inv] = await tx
+      .select({
+        id: invoices.id,
+        amountCents: invoices.amountCents,
+        externalId: invoices.externalId,
+      })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.id, data.invoiceId),
+          eq(invoices.tenantId, data.tenantId),
+        ),
+      )
+      .limit(1);
+    return inv ?? null;
+  });
+
+  if (!invoice) {
+    return jsonError(404, "Fatura não encontrada para este tenant.");
+  }
+  if (
+    data.stoneChargeId &&
+    invoice.externalId &&
+    data.stoneChargeId !== invoice.externalId
+  ) {
+    return jsonError(409, "Identificador da transação Stone não confere.");
+  }
+  if (
+    data.amountCents !== undefined &&
+    data.amountCents !== invoice.amountCents
+  ) {
+    return jsonError(409, "Valor da cobrança não confere com a fatura.");
+  }
+
+  const result = await ingestWebhookEvent({
+    tenantId: data.tenantId,
+    provider: "stone",
+    eventId: data.eventId,
+    type: data.type,
+    invoiceId: data.invoiceId,
+    raw: data.raw,
+  });
 
   await logAudit({
     tenantId: data.tenantId,
@@ -87,8 +192,16 @@ export async function POST(request: Request) {
     action: "webhook.stone_ingested",
     entity: "webhook",
     entityId: data.eventId,
-    payload: { type: data.type, invoiceId: data.invoiceId },
+    payload: {
+      type: data.type,
+      invoiceId: data.invoiceId,
+      deduped: result.deduped,
+    },
   });
 
-  return NextResponse.json({ ok: true, deduped: false });
+  return NextResponse.json({
+    ok: true,
+    deduped: result.deduped,
+    queued: result.queued,
+  });
 }

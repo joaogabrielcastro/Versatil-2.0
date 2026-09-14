@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { jsonError } from "@/lib/api/json";
@@ -17,11 +18,31 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const h = await headers();
+  const ip =
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    h.get("x-real-ip") ??
+    "unknown";
+
   let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(await request.json());
   } catch {
     return jsonError(400, "Payload inválido.");
+  }
+
+  const { checkLoginRateLimit } = await import("@/lib/auth/login-rate-limit");
+  const rl = await checkLoginRateLimit(
+    `platform:${ip}:${body.email.toLowerCase()}`,
+  );
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Tente novamente em instantes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSec) },
+      },
+    );
   }
 
   const admin = await withBypassRlsTransaction(async (tx) => {

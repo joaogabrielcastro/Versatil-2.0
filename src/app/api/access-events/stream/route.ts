@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { accessEvents } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
@@ -41,6 +41,7 @@ export async function GET(request: Request) {
                 createdAt: accessEvents.createdAt,
               })
               .from(accessEvents)
+              .where(eq(accessEvents.tenantId, tenantId))
               .orderBy(desc(accessEvents.createdAt))
               .limit(40);
           });

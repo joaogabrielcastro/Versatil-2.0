@@ -73,7 +73,11 @@ export async function PATCH(
     if (body.name !== undefined) patch.name = body.name;
     if (body.priceCents !== undefined) patch.priceCents = body.priceCents;
     if (body.active !== undefined) patch.active = body.active;
-    const [row] = await tx.update(plans).set(patch).where(eq(plans.id, id)).returning();
+    const [row] = await tx
+      .update(plans)
+      .set(patch)
+      .where(and(eq(plans.id, id), eq(plans.tenantId, tenantId)))
+      .returning();
     return row ?? null;
   });
 

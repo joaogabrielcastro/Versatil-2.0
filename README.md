@@ -14,7 +14,7 @@ Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil
 | Auth | JWT (`jose`), cookie de sessão, roles (`super_admin`, `tenant_admin`, `tenant_user`) |
 | Banco | PostgreSQL 16, Drizzle ORM, RLS por tenant |
 | Filas | Redis 7, BullMQ (worker separado) |
-| Pagamentos | Manual (balcão), Pagar.me (online/recorrência), Stone Connect (POS), Stripe (legado) |
+| Pagamentos | Manual (balcão) + Stone Connect (POS / recorrência). Sem Pagar.me/Stripe no produto |
 | Infra | Docker Compose, GitHub Actions (CI + crons) |
 | Testes | Vitest |
 
@@ -52,10 +52,10 @@ npm run worker   # filas BullMQ (obrigatório para webhooks/import)
 ## Módulos principais
 
 - **Balcão** — alunos, planos, assinaturas, cobrança, presença, relatórios, import CSV
-- **Cobrança** — registro manual; Pix/boleto via Pagar.me; cobrança na maquininha (Stone Connect); renovação automática com cartão salvo
-- **Pagamentos (admin)** — `/balcao/configuracoes/pagamentos` (credenciais cifradas por tenant)
+- **Cobrança** — registro manual; cobrança e renovação automática na maquininha Stone Connect
+- **Pagamentos (admin)** — `/balcao/configuracoes/pagamentos` (Stone Connect, credenciais cifradas)
 - **Catraca** — `POST /api/turnstile/v1/access` (status do aluno libera/bloqueia)
-- **Terminal de treino** — `/imprimir-treino?slug=…&token=…` (requer `KIOSK_ACCESS_SECRET`)
+- **Terminal de treino** — Integrações → Terminais (token por dispositivo, hash no banco)
 - **Plataforma** — super admin de tenants
 
 ## Scripts úteis
@@ -91,12 +91,10 @@ Configure em **Settings → Secrets and variables → Actions**. Sem esses secre
 
 | Forma | Onde configurar | Observação |
 |-------|-----------------|------------|
-| Manual (dinheiro/Pix/cartão) | Balcão → Cobrança | Sempre disponível |
-| Pagar.me (Pix/boleto/cartão + recorrência) | Configurações → Pagamentos | Webhook: `/api/webhooks/pagarme?tenantSlug=…` |
-| Stone Connect (maquininha) | Configurações → Pagamentos | Requer Partner Program (`ServiceRefererName`); confirmação via webhook Pagar.me |
-| Stripe | Configurações → Pagamentos | Legado / opcional |
+| Manual (dinheiro/Pix/cartão já recebido) | Balcão → Cobrança | Sempre disponível |
+| Stone Connect (maquininha + recorrência) | Configurações → Pagamentos | Partner Program (`ServiceRefererName`); webhook HMAC ou Bearer. Ver INTEGRACOES.md |
 
-Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação em sandbox Pagar.me / Stone ainda é necessária antes de produção com cobrança online/POS.
+Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação Stone (POS real / sandbox) é bloqueio externo — testes mockados não a substituem.
 
 ## Produção (checklist rápido)
 
@@ -106,4 +104,4 @@ Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação 
 - [ ] Worker rodando (`npm run worker` ou Compose profile `pilot`)
 - [ ] Secrets GitHub `APP_BASE_URL` + `CRON_SECRET` para os crons
 - [ ] Backup agendado: `npm run db:backup`
-- [ ] (Opcional) Credenciais Pagar.me / Stone Connect por academia
+- [ ] (Opcional) Credenciais Stone Connect por academia + webhook

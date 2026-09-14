@@ -31,17 +31,21 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379
       JWT_SECRET: "01234567890123456789012345678901"
       NEXTAUTH_SECRET: "01234567890123456789012345678901"
-      KIOSK_ACCESS_SECRET: "ci-kiosk-token-16chars"
+      PAYMENT_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      STONE_WEBHOOK_SECRET: "ci-stone-webhook-16"
+      WEBHOOK_INGEST_SECRET: "ci-webhook-ingest16"
       CRON_SECRET: "ci-cron-secret"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "20"
           cache: "npm"
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - name: Unit tests
+      - name: Apply database migrations
+        run: npx drizzle-kit migrate
+      - name: Unit and isolation tests
         run: npm test
       - run: npm run build

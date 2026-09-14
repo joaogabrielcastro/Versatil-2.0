@@ -116,7 +116,7 @@ export async function PATCH(
     const [row] = await tx
       .update(students)
       .set(patch)
-      .where(eq(students.id, id))
+      .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .returning();
     return row ?? null;
   });

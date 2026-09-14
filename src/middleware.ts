@@ -1,24 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth/constants";
 import { verifySessionToken } from "@/lib/auth/jwt";
-
-/** Subdomínios do próprio app (não são academia). */
-const RESERVED = new Set([
-  "www",
-  "app",
-  "api",
-  "localhost",
-  "versatil",
-  "versatil-academia",
-]);
+import { trustedTenantHeaders } from "@/lib/tenant/host-slug";
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
-  const slug = extractTenantSlug(host);
-  const requestHeaders = new Headers(request.headers);
-  if (slug) {
-    requestHeaders.set("x-tenant-slug", slug);
-  }
+  const requestHeaders = trustedTenantHeaders(
+    request.headers,
+    host,
+    process.env.APP_URL,
+  );
 
   const { pathname } = request.nextUrl;
 
@@ -71,32 +62,6 @@ function redirectToLogin(request: NextRequest, pathname: string) {
   url.pathname = "/login";
   url.searchParams.set("next", pathname);
   return NextResponse.redirect(url);
-}
-
-function extractTenantSlug(host: string): string | null {
-  const hostname = host.split(":")[0]?.toLowerCase() ?? "";
-  const parts = hostname.split(".");
-  // Precisa de pelo menos academia.app.tld (ex.: demo.versatil.jwsoftware.com.br)
-  // Domínio do app sozinho (versatil.jwsoftware.com.br) não é tenant.
-  if (parts.length < 3) return null;
-  const sub = parts[0];
-  if (!sub || RESERVED.has(sub)) return null;
-
-  // Se APP_URL aponta para este host (domínio principal), não tratar como tenant.
-  const appHost = appHostname();
-  if (appHost && hostname === appHost) return null;
-
-  return sub;
-}
-
-function appHostname(): string | null {
-  const raw = process.env.APP_URL;
-  if (!raw) return null;
-  try {
-    return new URL(raw).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
 }
 
 export const config = {

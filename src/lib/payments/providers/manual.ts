@@ -47,7 +47,7 @@ export const manualProvider: PaymentProvider = {
         paidAt: new Date(),
         settlementSource: "manual_reception",
       })
-      .where(eq(invoices.id, invoiceId));
+      .where(and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)));
 
     await tx.insert(invoiceTimelineEvents).values({
       tenantId,

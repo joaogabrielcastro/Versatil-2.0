@@ -2,6 +2,9 @@
   "name": "tecnofit-enxuto",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -47,7 +50,6 @@
     "postgres": "^3.4.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "stripe": "^18.0.0",
     "tailwind-merge": "^3.3.0",
     "zod": "^3.24.4"
   },

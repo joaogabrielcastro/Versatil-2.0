@@ -71,11 +71,9 @@ O worker na rede Docker usa `REDIS_URL=redis://redis:6379` e `DATABASE_URL` com 
 - Cron (ou botão no balcão): `GET /api/cron/generate-invoices` com `Authorization: Bearer CRON_SECRET`.
 - Integrações Stone + catraca: **[INTEGRACOES.md](./INTEGRACOES.md)**.
 
-## 6. Stripe (opcional — não usado no Plano C)
+## 6. Stone Connect
 
-1. `STRIPE_SECRET_KEY` e/ou credenciais em **Balcão → Pagamentos**.
-2. `STRIPE_WEBHOOK_SECRET` + webhook Stripe para `POST …/api/webhooks/stripe` com evento **checkout.session.completed**.
-3. `APP_URL` = URL pública do site (redirects do checkout).
+Credenciais por academia em **Balcão → Pagamentos**. Webhook: ver **[INTEGRACOES.md](./INTEGRACOES.md)**. Stripe e checkout Pagar.me foram removidos do produto.
 
 ## 7. Cron (recalcular estados dos alunos)
 

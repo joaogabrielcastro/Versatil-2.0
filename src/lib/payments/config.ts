@@ -10,18 +10,9 @@ import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { getEnv } from "@/lib/env";
 import type { PaymentProviderId } from "@/lib/payments/types";
 
-/** Credenciais do Pagar.me (cifradas em repouso). */
-export interface PagarmeCredentials {
-  secretKey: string;
-  /** Chave pública (checkout/tokenização no front). */
-  publicKey?: string;
-  /** Segredo para validar assinatura do webhook (HMAC-SHA256). */
-  webhookSecret?: string;
-}
-
-/** Credenciais do Stone Connect (maquininha POS). Roda sobre a conta Pagar.me. */
+/** Credenciais do Stone Connect (maquininha POS). */
 export interface StoneConnectCredentials {
-  /** Secret key da conta Pagar.me habilitada para Connect. */
+  /** Secret key da conta habilitada para Stone Connect (API Core v5). */
   secretKey: string;
   /** ID da empresa no Stone Partner Program (header ServiceRefererName). */
   serviceRefererName: string;
@@ -29,11 +20,11 @@ export interface StoneConnectCredentials {
   defaultTerminalSerial?: string;
   /** Tipo de pagamento padrão na maquininha. */
   paymentType?: "credit" | "debit";
+  /** Segredo HMAC do webhook Core (`X-Hub-Signature`). */
+  webhookSecret?: string;
 }
 
-/** União das credenciais possíveis por provedor. */
-export type ProviderCredentials = PagarmeCredentials &
-  Partial<StoneConnectCredentials> &
+export type ProviderCredentials = StoneConnectCredentials &
   Record<string, unknown>;
 
 export interface ProviderConfig<C = ProviderCredentials> {

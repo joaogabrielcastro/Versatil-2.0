@@ -10,6 +10,7 @@
 
 # testing
 /coverage
+.vitest-database-url
 
 # next.js
 /.next/

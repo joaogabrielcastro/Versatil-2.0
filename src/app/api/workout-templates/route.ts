@@ -1,4 +1,4 @@
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -28,6 +28,7 @@ export async function GET() {
     return tx
       .select()
       .from(workoutTemplates)
+      .where(eq(workoutTemplates.tenantId, tenantId))
       .orderBy(asc(workoutTemplates.sortOrder), desc(workoutTemplates.createdAt));
   });
 

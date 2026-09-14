@@ -1,8 +1,8 @@
 /**
- * Stone Connect 2.0 roda sobre a API do Pagar.me: cria um pedido "aberto"
- * (`closed:false`) com `poi_payment_settings`, que é enviado ao POS integrado.
- * O pagamento acontece presencialmente na maquininha e a confirmação chega pelo
- * mesmo webhook `charge.paid` do Pagar.me.
+ * Stone Connect 2.0 (contrato neste repositório): pedido aberto enviado ao POS.
+ * Transporte: API Core v5 (`POST /orders`, `closed:false`, `poi_payment_settings`).
+ * Confirmação: webhook Core `charge.paid` (HMAC) ou contrato interno mapeado.
+ * Isso não é o checkout/produto Pagar.me do SaaS.
  */
 
 /** Header obrigatório com o ID da empresa no Stone Partner Program. */

@@ -16,26 +16,24 @@ type WorkoutToday = {
   exercises: WorkoutExercise[];
 };
 
-function kioskQuery(slug: string, token: string, extra: Record<string, string>) {
+function kioskQuery(slug: string, extra: Record<string, string>) {
   const params = new URLSearchParams({
     tenantSlug: slug.trim(),
     ...extra,
   });
-  if (token.trim()) params.set("token", token.trim());
   return params.toString();
 }
 
 export function WorkoutPrintKiosk({
   initialSlug,
   slugFromSubdomain,
-  initialToken,
 }: {
   initialSlug: string;
   slugFromSubdomain: boolean;
-  initialToken: string;
 }) {
   const [tenantSlug, setTenantSlug] = useState(initialSlug);
-  const [kioskToken, setKioskToken] = useState(initialToken);
+  const [kioskToken, setKioskToken] = useState("");
+  const [paired, setPaired] = useState(false);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [nameFilter, setNameFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -64,11 +62,9 @@ export function WorkoutPrintKiosk({
       setLoadingList(true);
       setError(null);
       try {
-        const qs = kioskQuery(tenantSlug, kioskToken, { q: trimmed });
+        const qs = kioskQuery(tenantSlug, { q: trimmed });
         const res = await fetch(`/api/kiosk/students?${qs}`, {
-          headers: kioskToken.trim()
-            ? { "x-kiosk-token": kioskToken.trim() }
-            : undefined,
+          credentials: "include",
         });
         const j = (await res.json()) as {
           error?: string;
@@ -89,7 +85,7 @@ export function WorkoutPrintKiosk({
         if (seq === searchSeq.current) setLoadingList(false);
       }
     },
-    [tenantSlug, kioskToken, slugReady],
+    [tenantSlug, slugReady],
   );
 
   useEffect(() => {
@@ -106,14 +102,10 @@ export function WorkoutPrintKiosk({
     setWorkout(null);
     setShowPrint(false);
     try {
-      const qs = kioskQuery(tenantSlug, kioskToken, {});
+      const qs = kioskQuery(tenantSlug, {});
       const res = await fetch(
         `/api/kiosk/students/${studentId}/workout-today?${qs}`,
-        {
-          headers: kioskToken.trim()
-            ? { "x-kiosk-token": kioskToken.trim() }
-            : undefined,
-        },
+        { credentials: "include" },
       );
       const j = (await res.json()) as {
         error?: string;
@@ -178,26 +170,67 @@ export function WorkoutPrintKiosk({
             <Input
               value={tenantSlug}
               onChange={(e) => setTenantSlug(e.target.value)}
-              placeholder="demo"
+              placeholder="código da academia"
             />
           </label>
         </div>
       ) : null}
 
-      {!initialToken ? (
-        <div className="mt-4 flex flex-wrap items-end gap-2">
+      {!paired ? (
+        <form
+          className="mt-4 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void (async () => {
+              if (!slugReady || kioskToken.trim().length < 16) {
+                setError("Informe o slug da academia e o token do terminal.");
+                return;
+              }
+              setError(null);
+              try {
+                const res = await fetch("/api/kiosk/session", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    tenantSlug: tenantSlug.trim(),
+                    token: kioskToken.trim(),
+                  }),
+                });
+                const j = (await res.json().catch(() => ({}))) as {
+                  error?: string;
+                };
+                if (!res.ok) {
+                  setError(j.error ?? "Não foi possível autenticar o terminal.");
+                  return;
+                }
+                setKioskToken("");
+                setPaired(true);
+              } catch {
+                setError("Erro de rede. Tente de novo.");
+              }
+            })();
+          }}
+        >
           <label className="flex flex-1 flex-col gap-1 text-sm">
             Token do terminal
             <Input
               type="password"
               value={kioskToken}
               onChange={(e) => setKioskToken(e.target.value)}
-              placeholder="Definido em KIOSK_ACCESS_SECRET"
+              placeholder="Cole o token gerado em Integrações"
               autoComplete="off"
             />
           </label>
-        </div>
-      ) : null}
+          <Button type="submit" variant="secondary">
+            Autenticar terminal
+          </Button>
+        </form>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Terminal autenticado nesta academia.
+        </p>
+      )}
 
       <section className="mt-8 space-y-4">
         <label className="flex flex-col gap-2 text-sm">

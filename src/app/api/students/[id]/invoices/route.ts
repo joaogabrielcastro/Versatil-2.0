@@ -30,7 +30,7 @@ export async function GET(
     const [stu] = await tx
       .select({ id: students.id })
       .from(students)
-      .where(eq(students.id, studentId))
+      .where(and(eq(students.id, studentId), eq(students.tenantId, tenantId)))
       .limit(1);
     if (!stu) {
       return null;
@@ -39,7 +39,12 @@ export async function GET(
     const invs = await tx
       .select()
       .from(invoices)
-      .where(eq(invoices.studentId, studentId))
+      .where(
+        and(
+          eq(invoices.studentId, studentId),
+          eq(invoices.tenantId, tenantId),
+        ),
+      )
       .orderBy(desc(invoices.createdAt));
 
     const ids = invs.map((i) => i.id);

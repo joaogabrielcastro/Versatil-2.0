@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accessEvents, students, turnstileDevices } from "@/lib/db/schema";
@@ -95,7 +95,12 @@ export async function POST(request: Request) {
       const [row] = await tx
         .select({ id: students.id, status: students.status })
         .from(students)
-        .where(eq(students.id, parsed.studentId))
+        .where(
+          and(
+            eq(students.id, parsed.studentId),
+            eq(students.tenantId, device.tenantId),
+          ),
+        )
         .limit(1);
       student = row ?? null;
     } else if (codeRaw) {
@@ -105,10 +110,13 @@ export async function POST(request: Request) {
         .select({ id: students.id, status: students.status })
         .from(students)
         .where(
-          or(
-            eq(students.facialVectorRef, ref),
-            eq(students.facialVectorRef, digits),
-            eq(students.facialVectorRef, codeRaw),
+          and(
+            eq(students.tenantId, device.tenantId),
+            or(
+              eq(students.facialVectorRef, ref),
+              eq(students.facialVectorRef, digits),
+              eq(students.facialVectorRef, codeRaw),
+            ),
           ),
         )
         .limit(1);
@@ -117,7 +125,12 @@ export async function POST(request: Request) {
       const [row] = await tx
         .select({ id: students.id, status: students.status })
         .from(students)
-        .where(eq(students.cpf, cpfDigits))
+        .where(
+          and(
+            eq(students.tenantId, device.tenantId),
+            eq(students.cpf, cpfDigits),
+          ),
+        )
         .limit(1);
       student = row ?? null;
     }

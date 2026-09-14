@@ -11,6 +11,7 @@ export const stoneWebhookBodySchema = z.object({
   type: z.enum(["invoice.paid", "invoice.payment_failed"]),
   invoiceId: z.string().uuid(),
   stoneChargeId: z.string().max(255).optional(),
+  amountCents: z.number().int().nonnegative().optional(),
   raw: z.unknown().optional(),
 });
 

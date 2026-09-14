@@ -18,6 +18,7 @@ const putSchema = z.object({
   serviceRefererName: z.string().min(1).max(255).optional(),
   defaultTerminalSerial: z.string().max(64).optional(),
   paymentType: z.enum(["credit", "debit"]).optional(),
+  webhookSecret: z.string().min(8).max(255).optional(),
 });
 
 async function requireAdmin() {
@@ -44,6 +45,7 @@ export async function GET() {
     configured: Boolean(cfg),
     enabled: cfg?.enabled ?? false,
     hasSecretKey: Boolean(cfg?.credentials.secretKey),
+    hasWebhookSecret: Boolean(cfg?.credentials.webhookSecret),
     serviceRefererName: cfg?.credentials.serviceRefererName ?? null,
     defaultTerminalSerial: cfg?.credentials.defaultTerminalSerial ?? null,
     paymentType: cfg?.credentials.paymentType ?? "credit",
@@ -72,6 +74,7 @@ export async function PUT(request: Request) {
     credentials.defaultTerminalSerial = body.defaultTerminalSerial.trim();
   }
   if (body.paymentType) credentials.paymentType = body.paymentType;
+  if (body.webhookSecret) credentials.webhookSecret = body.webhookSecret.trim();
 
   await upsertProviderConfig(tenantId, "stone_connect", {
     enabled: body.enabled,

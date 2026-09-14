@@ -3,31 +3,32 @@ import {
   type StoneConnectCredentials,
 } from "@/lib/payments/config";
 import type {
+  ChargeStatusResult,
   PaymentProvider,
   RawWebhookRequest,
   TerminalChargeInput,
   TerminalChargeResult,
 } from "@/lib/payments/provider";
-import { PagarmeClient } from "@/lib/payments/providers/pagarme/client";
-import { normalizePagarmeWebhook } from "@/lib/payments/providers/pagarme/api";
 import {
   STONE_CONNECT_HEADER,
   buildPosOrderPayload,
 } from "@/lib/payments/providers/stone/api";
 import {
+  normalizeStoneConnectWebhook,
+} from "@/lib/payments/providers/stone/connect-webhook";
+import {
+  StoneConnectHttpClient,
+  mapStoneConnectChargeStatus,
+} from "@/lib/payments/providers/stone/http";
+import {
+  PaymentNotImplementedError,
   PaymentProviderError,
   type NormalizedPaymentEvent,
 } from "@/lib/payments/types";
 
 /**
- * Provedor Stone Connect (POS / maquininha presencial).
- *
- * Roda sobre a API do Pagar.me: cria um pedido aberto (`closed:false`) com
- * `poi_payment_settings` direcionado ao serial do POS. O pagamento é feito na
- * maquininha e a confirmação chega pelo webhook `charge.paid` do Pagar.me
- * (mesma rota `/api/webhooks/pagarme`).
- *
- * Requer habilitação comercial no Stone Partner Program (ServiceRefererName).
+ * Stone Connect (POS). Transporte: API Core v5 + header ServiceRefererName.
+ * Confirmação: webhook Core (`charge.paid`) ou contrato interno mapeado.
  */
 export const stoneConnectProvider: PaymentProvider = {
   id: "stone_connect",
@@ -70,7 +71,7 @@ export const stoneConnectProvider: PaymentProvider = {
       installments: input.installments,
     });
 
-    const client = new PagarmeClient(cfg.credentials.secretKey);
+    const client = new StoneConnectHttpClient(cfg.credentials.secretKey);
     const order = await client.postOrder(payload, {
       [STONE_CONNECT_HEADER]: cfg.credentials.serviceRefererName,
     });
@@ -79,6 +80,44 @@ export const stoneConnectProvider: PaymentProvider = {
       externalId: order.charge?.id ?? order.id,
       status: "sent_to_terminal",
     };
+  },
+
+  async getChargeStatus(
+    tenantId: string,
+    externalId: string,
+  ): Promise<ChargeStatusResult> {
+    const cfg = await getEnabledProviderConfig<StoneConnectCredentials>(
+      tenantId,
+      "stone_connect",
+    );
+    if (!cfg?.credentials.secretKey) {
+      throw new PaymentProviderError(
+        "stone_connect",
+        "Stone Connect não configurado.",
+      );
+    }
+    const client = new StoneConnectHttpClient(cfg.credentials.secretKey);
+    const charge = await client.getCharge(externalId);
+    return {
+      externalId: charge.id,
+      status: mapStoneConnectChargeStatus(charge.status),
+    };
+  },
+
+  /**
+   * BLOQUEIO EXTERNO — o contrato Connect neste repositório não documenta
+   * cancelamento/void. Não inventamos endpoint.
+   */
+  async cancelCharge(): Promise<void> {
+    throw new PaymentNotImplementedError("stone_connect", "cancelCharge");
+  },
+
+  /**
+   * BLOQUEIO EXTERNO — o contrato Connect neste repositório não documenta
+   * refund/estorno. Não inventamos endpoint.
+   */
+  async refundCharge(): Promise<void> {
+    throw new PaymentNotImplementedError("stone_connect", "refundCharge");
   },
 
   async normalizeWebhook(
@@ -90,8 +129,8 @@ export const stoneConnectProvider: PaymentProvider = {
     } catch {
       return null;
     }
-    return normalizePagarmeWebhook(
-      body as Parameters<typeof normalizePagarmeWebhook>[0],
+    return normalizeStoneConnectWebhook(
+      body as Parameters<typeof normalizeStoneConnectWebhook>[0],
     );
   },
 };

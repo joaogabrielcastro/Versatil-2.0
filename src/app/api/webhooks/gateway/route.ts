@@ -1,22 +1,21 @@
-import { logAudit } from "@/lib/audit/log";
 import { NextResponse } from "next/server";
+import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getEnv } from "@/lib/env";
-import { webhookDedupe } from "@/lib/db/schema";
-import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
-import { getQueue } from "@/lib/queues/bull";
 import { webhookJobSchema } from "@/lib/queues/job-payloads";
+import { ingestWebhookEvent } from "@/lib/webhooks/ingest";
+import { requireConfiguredBearer } from "@/lib/webhooks/require-bearer";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const expected = getEnv().WEBHOOK_INGEST_SECRET;
-  if (!expected) {
-    return jsonError(503, "WEBHOOK_INGEST_SECRET não configurado.");
-  }
-  const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${expected}`) {
-    return jsonError(401, "Não autorizado.");
+  const authz = requireConfiguredBearer(
+    getEnv().WEBHOOK_INGEST_SECRET,
+    request.headers.get("authorization"),
+    "WEBHOOK_INGEST_SECRET não configurado.",
+  );
+  if (!authz.ok) {
+    return jsonError(authz.status, authz.error);
   }
 
   let body: unknown;
@@ -31,32 +30,7 @@ export async function POST(request: Request) {
     return jsonError(400, "Payload inválido.");
   }
 
-  const inserted = await withBypassRlsTransaction(async (tx) => {
-    return tx
-      .insert(webhookDedupe)
-      .values({
-        tenantId: parsed.data.tenantId,
-        provider: parsed.data.provider,
-        eventId: parsed.data.eventId,
-      })
-      .onConflictDoNothing({
-        target: [
-          webhookDedupe.tenantId,
-          webhookDedupe.provider,
-          webhookDedupe.eventId,
-        ],
-      })
-      .returning({ id: webhookDedupe.id });
-  });
-
-  if (inserted.length === 0) {
-    return NextResponse.json({ ok: true, deduped: true });
-  }
-
-  await getQueue("webhooks").add("gateway", parsed.data, {
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  });
+  const result = await ingestWebhookEvent(parsed.data);
 
   await logAudit({
     tenantId: parsed.data.tenantId,
@@ -67,5 +41,9 @@ export async function POST(request: Request) {
     payload: { provider: parsed.data.provider, type: parsed.data.type },
   });
 
-  return NextResponse.json({ ok: true, deduped: false });
+  return NextResponse.json({
+    ok: true,
+    deduped: result.deduped,
+    queued: result.queued,
+  });
 }

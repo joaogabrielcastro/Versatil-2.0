@@ -11,6 +11,8 @@ type Device = {
   name: string;
   lastSeenAt: string | null;
   createdAt: string;
+  revokedAt?: string | null;
+  expiresAt?: string | null;
 };
 
 async function fetchDevices() {
@@ -143,25 +145,180 @@ Body (um deles):
         </p>
         <pre className="overflow-x-auto rounded-md border border-border bg-muted/40 p-3 text-xs">
 {`POST ${base}/api/webhooks/stone
-Header: Authorization: Bearer <STONE_WEBHOOK_SECRET>
-Body: {
+A) HMAC Connect: header X-Hub-Signature + ?tenantSlug=
+B) Contrato interno: Authorization: Bearer <STONE_WEBHOOK_SECRET>
+Body (B): {
   "tenantId": "<uuid da academia>",
-  "eventId": "id-unico-stone",
+  "eventId": "id-unico",
   "type": "invoice.paid",
   "invoiceId": "<uuid da fatura>",
   "stoneChargeId": "opcional",
-  "raw": { }
+  "amountCents": 9900
 }`}
         </pre>
         <p className="text-xs text-muted-foreground">
-          Evento <code className="text-foreground">invoice.payment_failed</code> marca
-          a fatura como incobrável e o aluno pode ficar inadimplente.
+          Evento <code className="text-foreground">invoice.payment_failed</code>{" "}
+          agenda nova tentativa (1/3/7 dias, até 4 tentativas) e só marca a
+          fatura como incobrável quando as tentativas se esgotam.
         </p>
         <p className="text-xs text-muted-foreground">
           Documentação completa: <strong>INTEGRACOES.md</strong> na raiz do projeto.
         </p>
       </section>
       </div>
+
+      <KioskDevicesSection />
     </div>
+  );
+}
+
+function KioskDevicesSection() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["kiosk-devices"],
+    queryFn: async () => {
+      const res = await fetch("/api/kiosk/devices", { credentials: "include" });
+      if (!res.ok) throw new Error("Falha ao carregar terminais.");
+      return (await res.json()) as { items: Device[] };
+    },
+  });
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [newToken, setNewToken] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function createDevice(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setNewToken(null);
+    try {
+      const res = await fetch("/api/kiosk/devices", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deviceToken?: string;
+      };
+      if (!res.ok) {
+        setErr(j.error ?? "Erro ao criar terminal.");
+        return;
+      }
+      setNewToken(j.deviceToken ?? null);
+      setName("");
+      await qc.invalidateQueries({ queryKey: ["kiosk-devices"] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patchDevice(id: string, action: "revoke" | "rotate") {
+    setBusyId(id);
+    setErr(null);
+    if (action === "rotate") setNewToken(null);
+    try {
+      const res = await fetch(`/api/kiosk/devices/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deviceToken?: string;
+      };
+      if (!res.ok) {
+        setErr(j.error ?? "Erro ao atualizar terminal.");
+        return;
+      }
+      if (j.deviceToken) setNewToken(j.deviceToken);
+      await qc.invalidateQueries({ queryKey: ["kiosk-devices"] });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-lg font-semibold">Terminais</h2>
+      <p className="text-sm text-muted-foreground">
+        Terminais de treino da academia. O token em claro aparece só uma vez
+        (criação ou rotação). Depois permanece apenas o hash no banco.
+      </p>
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : q.isError ? (
+        <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+      ) : (
+        <ul className="space-y-2 text-sm">
+          {(q.data?.items ?? []).length === 0 ? (
+            <li className="text-muted-foreground">Nenhum terminal.</li>
+          ) : (
+            q.data!.items.map((d) => {
+              const revoked = Boolean(d.revokedAt);
+              return (
+                <li key={d.id} className="rounded-md border border-border p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="font-medium">{d.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Status: {revoked ? "revogado" : "ativo"}
+                        {" · "}Criado {formatDateTimeBr(d.createdAt)}
+                        {" · "}Último uso{" "}
+                        {d.lastSeenAt
+                          ? formatDateTimeBr(d.lastSeenAt)
+                          : "nunca"}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busyId === d.id}
+                        onClick={() => void patchDevice(d.id, "rotate")}
+                      >
+                        Gerar novo token
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busyId === d.id || revoked}
+                        onClick={() => void patchDevice(d.id, "revoke")}
+                      >
+                        Revogar
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+      <form onSubmit={(e) => void createDevice(e)} className="flex max-w-md flex-col gap-2">
+        <Input
+          placeholder="Nome (ex.: Totem recepção)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <Button type="submit" size="sm" disabled={busy}>
+          Novo terminal (gera token)
+        </Button>
+      </form>
+      {newToken ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-medium">Token (copie agora — não será exibido de novo):</p>
+          <code className="mt-1 block break-all text-xs">{newToken}</code>
+        </div>
+      ) : null}
+      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+    </section>
   );
 }

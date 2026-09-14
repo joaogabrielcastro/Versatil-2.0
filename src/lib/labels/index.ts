@@ -48,6 +48,17 @@ export function timelineEventLabel(type: string): string {
   return TIMELINE_EVENT_LABELS[type] ?? type;
 }
 
+export const STOCK_MOVEMENT_LABELS: Record<string, string> = {
+  in: "Entrada",
+  out: "Saída",
+  adjust: "Ajuste",
+  sale: "Venda",
+};
+
+export function stockMovementLabel(type: string): string {
+  return STOCK_MOVEMENT_LABELS[type] ?? type;
+}
+
 /** Formata CPF 11 dígitos → 000.000.000-00 */
 export function formatCpf(cpf: string): string {
   const d = cpf.replace(/\D/g, "");

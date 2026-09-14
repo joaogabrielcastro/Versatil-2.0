@@ -1,4 +1,4 @@
-# Cobra automaticamente faturas em aberto de assinaturas com renovação automática (Pagar.me).
+# Cobra automaticamente faturas em aberto de assinaturas com renovação automática (Stone Connect).
 # Secrets: APP_BASE_URL, CRON_SECRET
 name: Cron — charge open invoices
 

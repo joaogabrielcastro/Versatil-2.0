@@ -33,3 +33,43 @@ export function isChargeableNow(input: {
   }
   return true;
 }
+
+/**
+ * Falha de pagamento NÃO marca a fatura como incobrável na primeira tentativa.
+ * Só esgota após MAX_CHARGE_ATTEMPTS (4), com backoff 1/3/7 dias.
+ */
+export function nextStateAfterPaymentFailed(input: {
+  invoiceStatus: string;
+  chargeAttempts: number;
+  now?: Date;
+}): {
+  skip: boolean;
+  invoiceStatus: "open" | "uncollectible" | "paid" | "void";
+  gatewayChargeStatus: "failed";
+  nextChargeAttemptAt: Date | null;
+} {
+  if (input.invoiceStatus === "paid" || input.invoiceStatus === "void") {
+    return {
+      skip: true,
+      invoiceStatus: input.invoiceStatus,
+      gatewayChargeStatus: "failed",
+      nextChargeAttemptAt: null,
+    };
+  }
+  const attempts = Math.max(1, input.chargeAttempts);
+  const nextAt = computeNextChargeAttempt(attempts, input.now);
+  if (!nextAt) {
+    return {
+      skip: false,
+      invoiceStatus: "uncollectible",
+      gatewayChargeStatus: "failed",
+      nextChargeAttemptAt: null,
+    };
+  }
+  return {
+    skip: false,
+    invoiceStatus: "open",
+    gatewayChargeStatus: "failed",
+    nextChargeAttemptAt: nextAt,
+  };
+}

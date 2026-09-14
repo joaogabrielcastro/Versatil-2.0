@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   const { checkLoginRateLimit } = await import("@/lib/auth/login-rate-limit");
-  const rl = checkLoginRateLimit(`${ip}:${slug}:${body.email.toLowerCase()}`);
+  const rl = await checkLoginRateLimit(`${ip}:${slug}:${body.email.toLowerCase()}`);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Muitas tentativas. Tente novamente em instantes." },

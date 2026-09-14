@@ -12,7 +12,8 @@ export async function GET() {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
-  const rows = await withTenantTransaction(session.tid, async (tx) => {
+  const tenantId = session.tid;
+  const rows = await withTenantTransaction(tenantId, async (tx) => {
     return tx
       .select({
         id: accessEvents.id,
@@ -24,6 +25,7 @@ export async function GET() {
       })
       .from(accessEvents)
       .leftJoin(students, eq(students.id, accessEvents.studentId))
+      .where(eq(accessEvents.tenantId, tenantId))
       .orderBy(desc(accessEvents.createdAt))
       .limit(50);
   });

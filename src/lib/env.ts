@@ -27,19 +27,16 @@ const envSchema = z.object({
   /** Bearer para POST /api/webhooks/stone (quando integração Stone estiver ativa) */
   STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
   /**
-   * Token do terminal de impressão de treino (`x-kiosk-token` ou `?token=`).
-   * Em produção é obrigatório para `/api/kiosk/*` (sem secret → 503).
+   * Legado. Tokens de kiosk são por academia (`kiosk_devices`).
+   * Mantido só para compatibilidade de .env antigo — não autoriza acesso.
    */
   KIOSK_ACCESS_SECRET: z.string().min(16).optional(),
-  /** 64 hex chars (32 bytes) — preferencial; senão deriva de JWT_SECRET (menos seguro) */
+  /** 64 hex chars (32 bytes). Obrigatória em produção; em dev/test deriva de JWT se ausente. */
   PAYMENT_ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, "PAYMENT_ENCRYPTION_KEY deve ser 64 caracteres hex")
     .optional(),
-  /** Stripe global (MVP); produção multi-tenant: preferir credenciais cifradas por tenant */
-  STRIPE_SECRET_KEY: z.string().min(10).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(10).optional(),
-  /** URL pública do app (redirects Stripe) */
+  /** URL pública do app (links absolutos, webhooks) */
   APP_URL: z.string().url().optional(),
   /** Push opcional para hardware de catraca */
   TURNSTILE_PUSH_URL: z.string().url().optional(),
@@ -75,6 +72,11 @@ function readEnv(): Env {
     const msg = parsed.error.flatten().fieldErrors;
     console.error("Variáveis de ambiente inválidas:", msg);
     throw new Error("Falha na validação de ambiente (Zod). Verifique o .env.");
+  }
+  if (parsed.data.NODE_ENV === "production" && !parsed.data.PAYMENT_ENCRYPTION_KEY) {
+    throw new Error(
+      "PAYMENT_ENCRYPTION_KEY é obrigatória em produção (64 caracteres hex).",
+    );
   }
   return parsed.data;
 }

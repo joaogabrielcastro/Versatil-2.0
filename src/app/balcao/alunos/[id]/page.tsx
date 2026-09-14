@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { StudentDetailNav } from "@/components/balcao/student-detail-nav";
 import { StudentEditForm } from "@/components/balcao/student-edit-form";
 import { StudentAttendancePanel } from "@/components/balcao/student-attendance-panel";
@@ -32,7 +32,7 @@ export default async function AlunoDetalhePage({
     const [row] = await tx
       .select()
       .from(students)
-      .where(eq(students.id, id))
+      .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .limit(1);
     return row ?? null;
   });

@@ -10,6 +10,7 @@ type Settings = {
   configured: boolean;
   enabled: boolean;
   hasSecretKey: boolean;
+  hasWebhookSecret: boolean;
   serviceRefererName: string | null;
   defaultTerminalSerial: string | null;
   paymentType: "credit" | "debit";
@@ -29,6 +30,7 @@ export function StoneSettingsClient() {
   const [secretKey, setSecretKey] = useState("");
   const [refererName, setRefererName] = useState("");
   const [serial, setSerial] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
   const [paymentType, setPaymentType] = useState<"credit" | "debit">("credit");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function StoneSettingsClient() {
       if (secretKey) body.secretKey = secretKey;
       if (refererName) body.serviceRefererName = refererName;
       if (serial) body.defaultTerminalSerial = serial;
+      if (webhookSecret) body.webhookSecret = webhookSecret;
       const res = await fetch("/api/tenant/payment-providers/stone", {
         method: "PUT",
         credentials: "include",
@@ -56,6 +59,7 @@ export function StoneSettingsClient() {
       setSecretKey("");
       setRefererName("");
       setSerial("");
+      setWebhookSecret("");
       setMsg("Guardado.");
       await qc.invalidateQueries({ queryKey: ["stone-settings"] });
     } finally {
@@ -93,11 +97,12 @@ export function StoneSettingsClient() {
               : "Configurado (desativado)"
             : "Não configurado"}
           {s.hasSecretKey ? " · secret key definida" : ""}
+          {s.hasWebhookSecret ? " · webhook HMAC definido" : ""}
         </span>
       </div>
 
       <div>
-        <label className="text-sm font-medium">Secret key (conta Pagar.me/Stone)</label>
+        <label className="text-sm font-medium">Secret key (Stone Connect / API Core v5)</label>
         <Input
           className="mt-1"
           type="password"
@@ -139,6 +144,23 @@ export function StoneSettingsClient() {
             <option value="debit">Débito</option>
           </Select>
         </div>
+      </div>
+      <div>
+        <label className="text-sm font-medium">
+          Segredo HMAC do webhook Connect (X-Hub-Signature)
+        </label>
+        <Input
+          className="mt-1"
+          type="password"
+          autoComplete="off"
+          placeholder={
+            s.hasWebhookSecret
+              ? "•••• (deixe vazio para manter)"
+              : "segredo do painel Core"
+          }
+          value={webhookSecret}
+          onChange={(e) => setWebhookSecret(e.target.value)}
+        />
       </div>
 
       {msg ? (

@@ -64,6 +64,20 @@
       "when": 1778599000000,
       "tag": "0008_auto_renew_recurring",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778600000000,
+      "tag": "0009_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778601000000,
+      "tag": "0010_phase1_hardening",
+      "breakpoints": true
     }
   ]
 }

@@ -6,19 +6,18 @@ export const dynamic = "force-dynamic";
 export default async function ImprimirTreinoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ slug?: string; token?: string; kioskToken?: string }>;
+  searchParams: Promise<{ slug?: string }>;
 }) {
   const sp = await searchParams;
   const fromHost = await getTenantSlugFromRequest();
-  const initialSlug = (sp.slug ?? fromHost ?? "demo").trim();
-  const initialToken = (sp.token ?? sp.kioskToken ?? "").trim();
+  const fromQuery = sp.slug?.trim() ?? "";
+  const initialSlug = (fromHost ?? fromQuery).trim();
 
   return (
     <div className="min-h-screen bg-background">
       <WorkoutPrintKiosk
         initialSlug={initialSlug}
         slugFromSubdomain={Boolean(fromHost)}
-        initialToken={initialToken}
       />
     </div>
   );

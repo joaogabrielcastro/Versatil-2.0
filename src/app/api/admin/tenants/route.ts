@@ -5,6 +5,7 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { tenants } from "@/lib/db/schema";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
+import { createTenantWithAdmin } from "@/lib/services/onboarding/create-tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ const createSchema = z.object({
     .min(2)
     .max(64)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug: apenas minúsculas, números e hífen."),
+  adminEmail: z.string().email(),
+  adminPassword: z.string().min(8).max(128),
 });
 
 export async function GET() {
@@ -40,19 +43,27 @@ export async function POST(request: Request) {
   try {
     body = createSchema.parse(await request.json());
   } catch {
-    return jsonError(400, "Payload inválido.");
+    return jsonError(
+      400,
+      "Payload inválido. Informe name, slug, adminEmail e adminPassword (≥ 8).",
+    );
   }
 
   try {
-    const [row] = await withBypassRlsTransaction(async (tx) => {
-      const [t] = await tx
-        .insert(tenants)
-        .values({ name: body.name, slug: body.slug })
-        .returning();
-      return [t];
+    const created = await createTenantWithAdmin({
+      name: body.name,
+      slug: body.slug,
+      adminEmail: body.adminEmail,
+      adminPassword: body.adminPassword,
     });
-    return NextResponse.json({ tenant: row }, { status: 201 });
+    return NextResponse.json(
+      {
+        tenant: created.tenant,
+        admin: created.admin,
+      },
+      { status: 201 },
+    );
   } catch {
-    return jsonError(409, "Slug já existe ou dados inválidos.");
+    return jsonError(409, "Slug/e-mail já existe ou dados inválidos.");
   }
 }

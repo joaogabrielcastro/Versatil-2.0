@@ -4,6 +4,7 @@ import { VersatilLogo } from "@/components/brand/versatil-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BRAND } from "@/lib/brand";
+import { shouldShowDemoCredentials } from "@/lib/ui/show-demo-credentials";
 
 const features = [
   {
@@ -28,9 +29,10 @@ const features = [
   },
 ] as const;
 
-const showDemoCredentials =
-  process.env.NODE_ENV !== "production" ||
-  process.env.SHOW_DEMO_CREDENTIALS === "true";
+const showDemoCredentials = shouldShowDemoCredentials({
+  NODE_ENV: process.env.NODE_ENV,
+  SHOW_DEMO_CREDENTIALS: process.env.SHOW_DEMO_CREDENTIALS,
+});
 
 export default function HomePage() {
   return (

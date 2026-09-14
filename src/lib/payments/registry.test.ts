@@ -7,32 +7,31 @@ import {
 import { providerSupports } from "@/lib/payments/provider";
 import {
   PAYMENT_PROVIDER_IDS,
+  PaymentNotImplementedError,
   PaymentProviderError,
 } from "@/lib/payments/types";
 
 describe("payments registry", () => {
-  it("registra todos os provedores conhecidos", () => {
+  it("registra somente os provedores do produto (manual + Stone)", () => {
     const ids = listPaymentProviders().map((p) => p.id).sort();
     expect(ids).toEqual([...PAYMENT_PROVIDER_IDS].sort());
+    expect(ids).toEqual(["manual", "stone_connect"].sort());
+    expect(ids).not.toContain("pagarme");
+    expect(ids).not.toContain("stripe");
   });
 
   it("resolve provedor por id", () => {
     expect(getPaymentProvider("manual").id).toBe("manual");
-    expect(getPaymentProvider("pagarme").id).toBe("pagarme");
     expect(getPaymentProvider("stone_connect").id).toBe("stone_connect");
   });
 
   it("mapeia capabilities corretamente", () => {
     expect(providerSupports(getPaymentProvider("manual"), "manual_settlement")).toBe(true);
     expect(providerSupports(getPaymentProvider("manual"), "pos_terminal")).toBe(false);
-    expect(providerSupports(getPaymentProvider("pagarme"), "online_recurring")).toBe(true);
     expect(providerSupports(getPaymentProvider("stone_connect"), "pos_terminal")).toBe(true);
   });
 
   it("filtra provedores por capability", () => {
-    expect(providersWithCapability("online_recurring").map((p) => p.id)).toEqual([
-      "pagarme",
-    ]);
     expect(providersWithCapability("pos_terminal").map((p) => p.id)).toEqual([
       "stone_connect",
     ]);
@@ -42,34 +41,39 @@ describe("payments registry", () => {
   });
 });
 
-describe("pagarme (Fase 1)", () => {
-  it("createRecurringCharge exige cartão salvo (card_id)", async () => {
-    const p = getPaymentProvider("pagarme");
-    await expect(
-      p.createRecurringCharge!({
-        tenantId: "t",
-        subscriptionId: "s",
-        studentId: "st",
-        amountCents: 1000,
-        currency: "BRL",
-      }),
-    ).rejects.toBeInstanceOf(PaymentProviderError);
-  });
-});
-
-describe("stone_connect (Fase 2)", () => {
+describe("stone_connect", () => {
   it("chargeOnTerminal rejeita sem configuração", async () => {
     const p = getPaymentProvider("stone_connect");
-    // Sem config/DB no unit test, deve rejeitar (não resolver silenciosamente).
     await expect(
       p.chargeOnTerminal!({
-        tenantId: "t",
-        invoiceId: "i",
-        studentId: "s",
+        tenantId: "00000000-0000-0000-0000-000000000001",
+        invoiceId: "00000000-0000-0000-0000-000000000002",
+        studentId: "00000000-0000-0000-0000-000000000003",
         amountCents: 1000,
         currency: "BRL",
         terminalSerial: "ABC123",
       }),
     ).rejects.toThrow();
+  });
+
+  it("cancelamento não é inventado", async () => {
+    const p = getPaymentProvider("stone_connect");
+    await expect(p.cancelCharge!("00000000-0000-0000-0000-000000000001", "chg_1")).rejects.toBeInstanceOf(
+      PaymentNotImplementedError,
+    );
+  });
+
+  it("estorno não é inventado", async () => {
+    const p = getPaymentProvider("stone_connect");
+    await expect(p.refundCharge!("00000000-0000-0000-0000-000000000001", "chg_1")).rejects.toBeInstanceOf(
+      PaymentNotImplementedError,
+    );
+  });
+
+  it("getChargeStatus rejeita sem configuração", async () => {
+    const p = getPaymentProvider("stone_connect");
+    await expect(
+      p.getChargeStatus!("00000000-0000-0000-0000-000000000001", "chg_1"),
+    ).rejects.toBeInstanceOf(PaymentProviderError);
   });
 });

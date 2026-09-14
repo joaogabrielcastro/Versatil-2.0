@@ -5,22 +5,15 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import {
   getAutoRenewStatus,
-  saveSubscriptionCard,
   setAutoRenew,
 } from "@/lib/services/billing/recurring-charge";
-import { PaymentProviderError } from "@/lib/payments/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const putSchema = z
-  .object({
-    autoRenew: z.boolean().optional(),
-    cardToken: z.string().min(1).max(255).optional(),
-  })
-  .refine((v) => v.autoRenew !== undefined || v.cardToken, {
-    message: "Informe cardToken ou autoRenew.",
-  });
+const putSchema = z.object({
+  autoRenew: z.boolean(),
+});
 
 async function requireAdmin(id: string) {
   const session = await getSession();
@@ -60,22 +53,11 @@ export async function PUT(
   try {
     body = putSchema.parse(await request.json());
   } catch {
-    return jsonError(400, "Payload inválido.");
+    return jsonError(400, "Informe autoRenew.");
   }
 
-  try {
-    if (body.cardToken) {
-      const r = await saveSubscriptionCard(tenantId, id, body.cardToken);
-      if (!r.ok) return jsonError(400, r.reason ?? "Falha ao salvar cartão.");
-    }
-    if (body.autoRenew !== undefined) {
-      const r = await setAutoRenew(tenantId, id, body.autoRenew);
-      if (!r.ok) return jsonError(400, r.reason ?? "Falha ao alterar renovação.");
-    }
-  } catch (e) {
-    if (e instanceof PaymentProviderError) return jsonError(502, e.message);
-    throw e;
-  }
+  const r = await setAutoRenew(tenantId, id, body.autoRenew);
+  if (!r.ok) return jsonError(400, r.reason ?? "Falha ao alterar renovação.");
 
   await logAudit({
     tenantId,
@@ -83,10 +65,7 @@ export async function PUT(
     action: "billing.auto_renew_updated",
     entity: "student",
     entityId: id,
-    payload: {
-      autoRenew: body.autoRenew ?? null,
-      cardSaved: Boolean(body.cardToken),
-    },
+    payload: { autoRenew: body.autoRenew },
   });
 
   const status = await getAutoRenewStatus(tenantId, id);

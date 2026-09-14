@@ -3,6 +3,7 @@ import {
   MAX_CHARGE_ATTEMPTS,
   computeNextChargeAttempt,
   isChargeableNow,
+  nextStateAfterPaymentFailed,
 } from "@/lib/payments/recurring";
 
 const day = 86_400_000;
@@ -63,5 +64,29 @@ describe("isChargeableNow", () => {
         now,
       }),
     ).toBe(false);
+  });
+});
+
+describe("nextStateAfterPaymentFailed", () => {
+  it("mantém fatura aberta na primeira falha e agenda retry", () => {
+    const next = nextStateAfterPaymentFailed({
+      invoiceStatus: "open",
+      chargeAttempts: 1,
+      now: base,
+    });
+    expect(next.skip).toBe(false);
+    expect(next.invoiceStatus).toBe("open");
+    expect(next.gatewayChargeStatus).toBe("failed");
+    expect(next.nextChargeAttemptAt?.getTime()).toBe(base.getTime() + day);
+  });
+
+  it("só marca uncollectible após esgotar tentativas", () => {
+    const next = nextStateAfterPaymentFailed({
+      invoiceStatus: "open",
+      chargeAttempts: MAX_CHARGE_ATTEMPTS,
+      now: base,
+    });
+    expect(next.invoiceStatus).toBe("uncollectible");
+    expect(next.nextChargeAttemptAt).toBeNull();
   });
 });

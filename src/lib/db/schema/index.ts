@@ -10,6 +10,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -60,6 +61,13 @@ export const timelineEventTypeEnum = pgEnum("invoice_timeline_event_type", [
   "manual_payment",
   "note",
   "webhook_received",
+]);
+
+export const stockMovementTypeEnum = pgEnum("stock_movement_type", [
+  "in",
+  "out",
+  "adjust",
+  "sale",
 ]);
 
 export const tenants = pgTable("tenants", {
@@ -177,11 +185,11 @@ export const studentSubscriptions = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
-    /** Renovação automática: cobra o cartão salvo a cada fatura em aberto. */
+    /** Renovação automática: envia a fatura vencida à maquininha Stone. */
     autoRenew: boolean("auto_renew").notNull().default(false),
-    /** Provedor usado para a recorrência (ex.: "pagarme"). */
+    /** Provedor da recorrência (produto: stone_connect). */
     provider: varchar("provider", { length: 32 }),
-    /** IDs do provedor para o cartão salvo. */
+    /** IDs externos do provedor (legado; recorrência atual não usa cartão salvo). */
     externalCustomerId: varchar("external_customer_id", { length: 255 }),
     externalCardId: varchar("external_card_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -220,6 +228,10 @@ export const invoices = pgTable(
       withTimezone: true,
     }),
     lastChargeError: text("last_charge_error"),
+    /** idle | pending | succeeded | failed | canceled — cobrança no gateway. */
+    gatewayChargeStatus: varchar("gateway_charge_status", { length: 32 })
+      .notNull()
+      .default("idle"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -278,9 +290,8 @@ export const tenantPaymentSettings = pgTable(
 );
 
 /**
- * Configuração de provedores de pagamento por tenant (multi-provider).
- * Ex.: `pagarme` (online/recorrência), `stone_connect` (maquininha).
- * Credenciais ficam cifradas em `encryptedCredentials`.
+ * Configuração de provedores de pagamento por tenant.
+ * Produto: `stone_connect` (maquininha). Credenciais cifradas.
  */
 export const paymentProviderConfigs = pgTable(
   "payment_provider_configs",
@@ -330,6 +341,31 @@ export const turnstileDevices = pgTable(
   (t) => [
     index("turnstile_devices_tenant_idx").on(t.tenantId),
     uniqueIndex("turnstile_devices_token_hash").on(t.tokenHash),
+  ],
+);
+
+/** Terminal de impressão de treino — credencial por academia/dispositivo. */
+export const kioskDevices = pgTable(
+  "kiosk_devices",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("kiosk_devices_tenant_idx").on(t.tenantId),
+    uniqueIndex("kiosk_devices_token_hash").on(t.tokenHash),
   ],
 );
 
@@ -396,9 +432,11 @@ export const webhookDedupe = pgTable(
       .references(() => tenants.id, { onDelete: "cascade" }),
     provider: varchar("provider", { length: 32 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    processedAt: timestamp("processed_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    /** received | processing | processed | failed */
+    status: varchar("status", { length: 32 }).notNull().default("received"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("webhook_dedupe_tenant_provider_event").on(
@@ -493,5 +531,141 @@ export const auditLogs = pgTable(
   },
   (t) => [
     index("audit_logs_tenant_created_idx").on(t.tenantId, t.createdAt),
+  ],
+);
+
+/** Catálogo da loja da academia (suplementos, bebidas, acessórios…). */
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    sku: varchar("sku", { length: 64 }),
+    category: varchar("category", { length: 64 }),
+    priceCents: integer("price_cents").notNull(),
+    costCents: integer("cost_cents"),
+    quantityOnHand: integer("quantity_on_hand").notNull().default(0),
+    lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("products_tenant_idx").on(t.tenantId),
+    index("products_tenant_active_idx").on(t.tenantId, t.active),
+    uniqueIndex("products_tenant_sku")
+      .on(t.tenantId, t.sku)
+      .where(sql`${t.sku} IS NOT NULL`),
+    check("products_quantity_nonnegative", sql`${t.quantityOnHand} >= 0`),
+    check("products_price_nonnegative", sql`${t.priceCents} >= 0`),
+    check(
+      "products_low_stock_nonnegative",
+      sql`${t.lowStockThreshold} >= 0`,
+    ),
+  ],
+);
+
+/** Venda no balcão (loja da academia). */
+export const sales = pgTable(
+  "sales",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id").references(() => students.id, {
+      onDelete: "set null",
+    }),
+    actorUserId: uuid("actor_user_id").references(() => tenantUsers.id, {
+      onDelete: "set null",
+    }),
+    paymentMethod: varchar("payment_method", { length: 32 }).notNull(),
+    totalCents: integer("total_cents").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sales_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("sales_tenant_student_idx").on(t.tenantId, t.studentId),
+    check("sales_total_nonnegative", sql`${t.totalCents} >= 0`),
+  ],
+);
+
+export const saleItems = pgTable(
+  "sale_items",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    productName: varchar("product_name", { length: 255 }).notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    totalCents: integer("total_cents").notNull(),
+  },
+  (t) => [
+    index("sale_items_sale_idx").on(t.saleId),
+    index("sale_items_tenant_idx").on(t.tenantId),
+    check("sale_items_quantity_positive", sql`${t.quantity} > 0`),
+    check("sale_items_price_nonnegative", sql`${t.unitPriceCents} >= 0`),
+  ],
+);
+
+/** Histórico de entrada, saída, ajuste e venda. */
+export const stockMovements = pgTable(
+  "stock_movements",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    type: stockMovementTypeEnum("type").notNull(),
+    quantity: integer("quantity").notNull(),
+    resultingQuantity: integer("resulting_quantity").notNull(),
+    reason: varchar("reason", { length: 255 }),
+    actorUserId: uuid("actor_user_id").references(() => tenantUsers.id, {
+      onDelete: "set null",
+    }),
+    saleId: uuid("sale_id").references(() => sales.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("stock_movements_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("stock_movements_tenant_product_idx").on(t.tenantId, t.productId),
+    check("stock_movements_quantity_positive", sql`${t.quantity} > 0`),
+    check(
+      "stock_movements_resulting_nonnegative",
+      sql`${t.resultingQuantity} >= 0`,
+    ),
   ],
 );

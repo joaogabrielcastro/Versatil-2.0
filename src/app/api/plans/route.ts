@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -23,7 +23,11 @@ export async function GET() {
   const tenantId = session.tid;
 
   const items = await withTenantTransaction(tenantId, async (tx) => {
-    return tx.select().from(plans).orderBy(desc(plans.createdAt));
+    return tx
+      .select()
+      .from(plans)
+      .where(eq(plans.tenantId, tenantId))
+      .orderBy(desc(plans.createdAt));
   });
 
   return NextResponse.json({ items });
