@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowRight,
   CreditCard,
   DoorOpen,
   Package,
@@ -12,7 +11,6 @@ import {
 } from "lucide-react";
 import { and, count, eq, gte, lte, sql } from "drizzle-orm";
 import { AccessFeed } from "@/components/balcao/access-feed";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { getSession } from "@/lib/auth/session";
@@ -137,20 +135,6 @@ export default async function BalcaoDashboardPage() {
   });
 
   const tenantName = tenant?.name ?? "Academia";
-  const tenantSlug = tenant?.slug ?? "";
-  const kioskHref = `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`;
-
-  const shortcuts = [
-    { href: "/balcao/alunos", label: "Alunos" },
-    { href: "/balcao/cobranca", label: "Cobrança" },
-    { href: "/balcao/presenca", label: "Presença" },
-    { href: "/balcao/treinos", label: "Treinos" },
-    { href: "/balcao/estoque", label: "Estoque" },
-    { href: "/balcao/relatorios", label: "Relatórios" },
-    ...(tenantSlug
-      ? [{ href: kioskHref, label: "Terminal aluno" }]
-      : []),
-  ];
 
   return (
     <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -235,20 +219,6 @@ export default async function BalcaoDashboardPage() {
             </div>
           </CardContent>
         </Card>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-sm font-medium text-muted-foreground">Atalhos rápidos</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {shortcuts.map((s) => (
-            <Button key={s.href} variant="secondary" size="sm" asChild>
-              <Link href={s.href}>
-                {s.label}
-                <ArrowRight className="size-3.5 opacity-60" />
-              </Link>
-            </Button>
-          ))}
-        </div>
       </section>
 
       <section className="mt-10">
