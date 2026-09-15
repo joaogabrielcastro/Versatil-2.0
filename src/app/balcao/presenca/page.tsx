@@ -12,7 +12,7 @@ export default async function PresencaPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title="Presença na academia"
         description="Quem passou na catraca com acesso liberado. O reconhecimento facial registra cada entrada automaticamente."

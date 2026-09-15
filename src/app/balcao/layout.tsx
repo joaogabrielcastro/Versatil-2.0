@@ -28,7 +28,9 @@ export default async function BalcaoLayout({
   return (
     <div className="min-h-screen bg-background">
       <BalcaoNav isAdmin={isAdmin} tenantSlug={tenantSlug} />
-      {children}
+      <div className="min-h-screen lg:pl-60">
+        <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+      </div>
     </div>
   );
 }

@@ -14,7 +14,7 @@ export default async function TreinosPage() {
   const isAdmin = session.role === "tenant_admin";
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title="Modelos de treino"
         description="Treinos pré-fixados para imprimir e entregar aos alunos. Atribua na ficha do aluno e personalize exercícios quando necessário."

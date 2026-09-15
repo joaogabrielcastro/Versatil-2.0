@@ -153,14 +153,14 @@ export default async function BalcaoDashboardPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         eyebrow={tenantName}
         title="Painel do balcão"
         description={`${roleLabel(session.role)} · visão geral da operação`}
       />
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
         <StatCard label="Alunos cadastrados" value={tot} icon={Users} />
         <StatCard label="Ativos" value={act} accent="emerald" icon={TrendingUp} />
         <StatCard label="Inadimplentes" value={del} accent="red" icon={AlertTriangle} />

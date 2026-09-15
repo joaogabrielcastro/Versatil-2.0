@@ -13,7 +13,7 @@ export default async function EstoquePage() {
   const isAdmin = session.role === "tenant_admin";
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title="Estoque"
         description="Cadastre o que a academia vende (whey, isotônico, luva, camiseta…) e controle entrada, saída e venda no balcão."

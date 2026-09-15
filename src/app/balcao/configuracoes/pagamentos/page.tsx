@@ -16,7 +16,7 @@ export default async function PagamentosPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <Button variant="outline" size="sm" asChild>
         <Link href="/balcao">← Painel</Link>
       </Button>

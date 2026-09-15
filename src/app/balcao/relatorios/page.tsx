@@ -12,7 +12,7 @@ export default async function RelatoriosPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
+    <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title="Relatórios"
         description="Resumo financeiro e de presença por período. Exporte listas em CSV para o contador ou gestão."
