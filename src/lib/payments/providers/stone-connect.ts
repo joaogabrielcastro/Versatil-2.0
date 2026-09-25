@@ -101,6 +101,8 @@ export const stoneConnectProvider: PaymentProvider = {
     return {
       externalId: charge.id,
       status: mapStoneConnectChargeStatus(charge.status),
+      amountCents: charge.amountCents,
+      currency: charge.currency,
     };
   },
 

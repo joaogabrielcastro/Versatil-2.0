@@ -9,6 +9,7 @@ export const sessionPayloadSchema = z
       .optional()
       .transform((v) => v ?? null),
     role: z.enum(["super_admin", "tenant_admin", "tenant_user"]),
+    sv: z.number().int().positive(),
   })
   .superRefine((val, ctx) => {
     if (val.typ === "tenant" && val.tid === null) {

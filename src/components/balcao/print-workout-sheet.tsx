@@ -45,9 +45,11 @@ export function PrintWorkoutSheet({
         <p className="thermal-print__line">
           <span className="thermal-print__label">Aluno:</span> {studentName}
         </p>
-        <p className="thermal-print__line">
-          <span className="thermal-print__label">CPF:</span> {studentCpf}
-        </p>
+        {studentCpf ? (
+          <p className="thermal-print__line">
+            <span className="thermal-print__label">CPF:</span> {studentCpf}
+          </p>
+        ) : null}
         <p className="thermal-print__line thermal-print__muted">
           {formatDateTimeBr(printedAt)}
         </p>

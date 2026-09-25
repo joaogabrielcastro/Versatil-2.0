@@ -18,6 +18,8 @@ export function buildStoneConnectAuthHeader(secretKey: string): string {
 export interface StoneConnectCharge {
   id: string;
   status: string;
+  amountCents?: number;
+  currency?: string;
   raw: unknown;
 }
 
@@ -30,6 +32,16 @@ export interface StoneConnectOrder {
 
 type Json = Record<string, unknown>;
 
+function readAmountCents(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) ? value : undefined;
+}
+
+function readCurrency(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const currency = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(currency) ? currency : undefined;
+}
+
 function extractCharge(order: Json): StoneConnectCharge | null {
   const charges = Array.isArray(order.charges) ? (order.charges as Json[]) : [];
   const c = charges[0];
@@ -37,6 +49,8 @@ function extractCharge(order: Json): StoneConnectCharge | null {
   return {
     id: String(c.id ?? ""),
     status: String(c.status ?? "unknown"),
+    amountCents: readAmountCents(c.amount),
+    currency: readCurrency(c.currency),
     raw: c,
   };
 }
@@ -86,6 +100,7 @@ export class StoneConnectHttpClient {
         "stone_connect",
         "Falha de rede ao chamar Stone Connect (timeout ou POS inacessível).",
         e,
+        "unknown",
       );
     }
 
@@ -95,7 +110,9 @@ export class StoneConnectHttpClient {
       const message =
         (json.message as string | undefined) ??
         `Stone Connect respondeu HTTP ${res.status}.`;
-      throw new PaymentProviderError("stone_connect", message, json);
+      const outcome =
+        res.status >= 500 || res.status === 409 ? "unknown" : "rejected";
+      throw new PaymentProviderError("stone_connect", message, json, outcome);
     }
     return json;
   }
@@ -126,6 +143,8 @@ export class StoneConnectHttpClient {
     return {
       id: String(c.id ?? chargeId),
       status: String(c.status ?? "unknown"),
+      amountCents: readAmountCents(c.amount),
+      currency: readCurrency(c.currency),
       raw: c,
     };
   }

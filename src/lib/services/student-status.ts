@@ -4,6 +4,7 @@ import {
   withBypassRlsTransaction,
   withTenantTransaction,
 } from "@/lib/db/with-tenant";
+import { log } from "@/lib/observability/logger";
 import {
   computeStudentStatus,
   isSubscriptionActiveAt,
@@ -80,13 +81,28 @@ export async function recalculateStudentStatus(
   });
 }
 
-export async function recalculateAllStudents(): Promise<{ processed: number }> {
+export async function recalculateAllStudents(): Promise<{
+  processed: number;
+  failedTenantIds: string[];
+}> {
   const rows = await withBypassRlsTransaction(async (tx) => {
     return tx.select({ id: students.id, tenantId: students.tenantId }).from(students);
   });
 
+  const failed = new Set<string>();
+  let processed = 0;
   for (const r of rows) {
-    await recalculateStudentStatus(r.tenantId, r.id);
+    try {
+      await recalculateStudentStatus(r.tenantId, r.id);
+      processed++;
+    } catch (err) {
+      failed.add(r.tenantId);
+      log.error("cron.tenant_failed", {
+        job: "recalculate-students",
+        tenantId: r.tenantId,
+        error: err instanceof Error ? err.message : "erro",
+      });
+    }
   }
-  return { processed: rows.length };
+  return { processed, failedTenantIds: [...failed] };
 }

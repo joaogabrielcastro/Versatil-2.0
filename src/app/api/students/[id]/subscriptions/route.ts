@@ -4,7 +4,7 @@ import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
-import { plans, studentSubscriptions, students } from "@/lib/db/schema";
+import { plans, studentSubscriptions, students, subscriptionTerms } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { createFirstSubscriptionInvoice } from "@/lib/services/billing/subscription-invoice";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
@@ -117,8 +117,21 @@ export async function POST(
           startsAt,
           endsAt,
           active: true,
+          priceCents: pl.priceCents,
+          billingInterval: pl.billingInterval,
         })
         .returning();
+      await tx.insert(subscriptionTerms).values({
+        tenantId,
+        subscriptionId: row!.id,
+        planId: pl.id,
+        priceCents: pl.priceCents,
+        billingInterval: pl.billingInterval,
+        startsAt,
+        endsAt,
+        validFrom: startsAt,
+        source: "contract",
+      });
       return [row, pl] as const;
     });
 

@@ -27,9 +27,11 @@ export const manualProvider: PaymentProvider = {
         id: invoices.id,
         studentId: invoices.studentId,
         status: invoices.status,
+        gatewayChargeStatus: invoices.gatewayChargeStatus,
       })
       .from(invoices)
       .where(and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)))
+      .for("update")
       .limit(1);
 
     if (!inv) {
@@ -38,6 +40,10 @@ export const manualProvider: PaymentProvider = {
 
     if (inv.status === "paid" || inv.status === "void") {
       return { status: "already_settled", studentId: inv.studentId };
+    }
+
+    if (inv.gatewayChargeStatus === "pending") {
+      return { status: "blocked_pending_pos", studentId: inv.studentId };
     }
 
     await tx

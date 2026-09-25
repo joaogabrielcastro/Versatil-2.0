@@ -225,6 +225,8 @@ export async function seedDemoData(tenantId: string): Promise<void> {
             startsAt,
             endsAt: null,
             active: true,
+            priceCents: monthlyPlan.priceCents,
+            billingInterval: monthlyPlan.billingInterval,
           })
           .returning({ id: studentSubscriptions.id });
         return [row!];

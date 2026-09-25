@@ -1,0 +1,23 @@
+# Consulta cobranças Stone ainda pendentes e quita só quando valor, moeda e id batem.
+# Secrets: APP_BASE_URL, CRON_SECRET
+name: Cron — reconcile Stone
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  reconcile-stone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conciliar cobranças pendentes
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$SECRET" ]; then
+            echo "Defina APP_BASE_URL e CRON_SECRET nos secrets do repositório."
+            exit 1
+          fi
+          curl -sS -f -H "Authorization: Bearer ${SECRET}" "${BASE%/}/api/cron/reconcile-stone"

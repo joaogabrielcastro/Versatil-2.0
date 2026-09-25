@@ -52,7 +52,14 @@ export async function POST(
     return jsonError(404, "Fatura não encontrada.");
   }
 
-  if (result.studentId) {
+  if (result.status === "blocked_pending_pos") {
+    return jsonError(
+      409,
+      "Há cobrança na maquininha em andamento. Concilie ou aguarde o webhook antes da baixa manual.",
+    );
+  }
+
+  if (result.studentId && result.status === "settled") {
     await recalculateStudentStatus(tenantId, result.studentId);
   }
 

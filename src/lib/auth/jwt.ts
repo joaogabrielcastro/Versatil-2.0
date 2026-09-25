@@ -14,6 +14,7 @@ export async function signSessionToken(
     typ: payload.typ,
     tid: payload.tid,
     role: payload.role,
+    sv: payload.sv,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
@@ -31,6 +32,7 @@ function parsePayload(claims: JWTPayload): SessionPayload {
     typ: claims.typ,
     tid: claims.tid === undefined || claims.tid === null ? null : claims.tid,
     role: claims.role,
+    sv: claims.sv,
   };
   return sessionPayloadSchema.parse(raw);
 }

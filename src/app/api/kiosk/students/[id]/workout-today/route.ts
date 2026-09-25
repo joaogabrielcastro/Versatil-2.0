@@ -34,7 +34,6 @@ export async function GET(
       .select({
         id: students.id,
         fullName: students.fullName,
-        cpf: students.cpf,
       })
       .from(students)
       .where(

@@ -1,3 +1,4 @@
+import { TZ_BR } from "@/lib/dates/br";
 import type { BillingInterval } from "@/lib/billing/interval-labels";
 
 const MONTHS_PER_INTERVAL: Record<BillingInterval, number> = {
@@ -6,14 +7,54 @@ const MONTHS_PER_INTERVAL: Record<BillingInterval, number> = {
   yearly: 12,
 };
 
+type CivilDate = { y: number; m: number; d: number };
+
+function civilDate(date: Date, timeZone = TZ_BR): CivilDate {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const read = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return { y: read("year"), m: read("month"), d: read("day") };
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Meio-dia em São Paulo, estável o ano todo (sem horário de verão desde 2019). */
+function atSaoPauloNoon(date: CivilDate): Date {
+  return new Date(Date.UTC(date.y, date.m - 1, date.d, 15, 0, 0));
+}
+
+function addCalendarMonths(date: CivilDate, months: number): CivilDate {
+  const index = date.y * 12 + (date.m - 1) + months;
+  const y = Math.floor(index / 12);
+  const m = (index % 12) + 1;
+  const d = Math.min(date.d, daysInMonth(y, m));
+  return { y, m, d };
+}
+
+function addCalendarDays(date: CivilDate, days: number): CivilDate {
+  const utc = new Date(Date.UTC(date.y, date.m - 1, date.d + days));
+  return {
+    y: utc.getUTCFullYear(),
+    m: utc.getUTCMonth() + 1,
+    d: utc.getUTCDate(),
+  };
+}
+
+function compareCivil(a: CivilDate, b: CivilDate): number {
+  if (a.y !== b.y) return a.y - b.y;
+  if (a.m !== b.m) return a.m - b.m;
+  return a.d - b.d;
+}
+
 export function addMonths(date: Date, months: number): Date {
-  const d = new Date(date);
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + months);
-  if (d.getDate() !== day) {
-    d.setDate(0);
-  }
-  return d;
+  return atSaoPauloNoon(addCalendarMonths(civilDate(date), months));
 }
 
 export function periodDueAt(
@@ -29,7 +70,9 @@ export function subscriptionIdempotencyKey(
   subscriptionId: string,
   dueAt: Date,
 ): string {
-  return `sub:${subscriptionId}:${dueAt.toISOString().slice(0, 10)}`;
+  const { y, m, d } = civilDate(dueAt);
+  const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  return `sub:${subscriptionId}:${iso}`;
 }
 
 export type BillablePeriod = {
@@ -37,6 +80,11 @@ export type BillablePeriod = {
   idempotencyKey: string;
 };
 
+/**
+ * Períodos devidos até hoje + lookahead, no calendário de São Paulo.
+ * Inclui ciclos já vencidos enquanto a assinatura ainda está vigente:
+ * é a recuperação se o cron falhou alguns dias. Não gera período depois de endsAt.
+ */
 export function billablePeriodsForSubscription(
   subscriptionId: string,
   startsAt: Date,
@@ -45,16 +93,18 @@ export function billablePeriodsForSubscription(
   now: Date,
   lookaheadDays = 7,
 ): BillablePeriod[] {
-  const horizon = new Date(now);
-  horizon.setDate(horizon.getDate() + lookaheadDays);
+  const start = civilDate(startsAt);
+  const horizon = addCalendarDays(civilDate(now), lookaheadDays);
+  const end = endsAt ? civilDate(endsAt) : null;
 
   const result: BillablePeriod[] = [];
   for (let i = 0; i <= 240; i++) {
-    const dueAt = periodDueAt(startsAt, interval, i);
-    if (dueAt > horizon) break;
-    if (endsAt && dueAt > endsAt) break;
-    if (dueAt < startsAt) continue;
+    const due = addCalendarMonths(start, i * MONTHS_PER_INTERVAL[interval]);
+    if (compareCivil(due, horizon) > 0) break;
+    if (end && compareCivil(due, end) > 0) break;
+    if (compareCivil(due, start) < 0) continue;
 
+    const dueAt = atSaoPauloNoon(due);
     result.push({
       dueAt,
       idempotencyKey: subscriptionIdempotencyKey(subscriptionId, dueAt),

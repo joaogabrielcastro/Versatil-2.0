@@ -14,9 +14,11 @@ import {
 import {
   connectWebhookAmountCents,
   connectWebhookChargeId,
+  connectWebhookCurrency,
   normalizeStoneConnectWebhook,
   verifyStoneConnectWebhookSignature,
 } from "@/lib/payments/providers/stone/connect-webhook";
+import { assertPaidWebhookMatchesInvoice } from "@/lib/payments/paid-webhook-match";
 import { getTenantIdBySlug } from "@/lib/tenant/resolve";
 import { ingestWebhookEvent } from "@/lib/webhooks/ingest";
 import { requireConfiguredBearer } from "@/lib/webhooks/require-bearer";
@@ -65,6 +67,7 @@ export async function POST(request: Request) {
     invoiceId: parsed.data.invoiceId,
     stoneChargeId: parsed.data.stoneChargeId,
     amountCents: parsed.data.amountCents,
+    currency: parsed.data.currency,
     raw: parsed.data.raw ?? body,
   });
 }
@@ -118,17 +121,15 @@ async function handleConnectCoreWebhook(request: Request, signature: string) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
+  const envelope = parsedBody as Parameters<typeof connectWebhookChargeId>[0];
   return enqueueVerifiedStoneEvent({
     tenantId,
     eventId: event.eventId,
     type: event.type,
     invoiceId: event.invoiceId,
-    stoneChargeId: connectWebhookChargeId(
-      parsedBody as Parameters<typeof connectWebhookChargeId>[0],
-    ),
-    amountCents: connectWebhookAmountCents(
-      parsedBody as Parameters<typeof connectWebhookAmountCents>[0],
-    ),
+    stoneChargeId: connectWebhookChargeId(envelope),
+    amountCents: connectWebhookAmountCents(envelope),
+    currency: connectWebhookCurrency(envelope),
     raw: event.raw,
   });
 }
@@ -140,6 +141,7 @@ async function enqueueVerifiedStoneEvent(data: {
   invoiceId: string;
   stoneChargeId?: string;
   amountCents?: number;
+  currency?: string;
   raw: unknown;
 }) {
   const invoice = await withTenantTransaction(data.tenantId, async (tx) => {
@@ -147,7 +149,9 @@ async function enqueueVerifiedStoneEvent(data: {
       .select({
         id: invoices.id,
         amountCents: invoices.amountCents,
+        currency: invoices.currency,
         externalId: invoices.externalId,
+        status: invoices.status,
       })
       .from(invoices)
       .where(
@@ -163,18 +167,23 @@ async function enqueueVerifiedStoneEvent(data: {
   if (!invoice) {
     return jsonError(404, "Fatura não encontrada para este tenant.");
   }
-  if (
-    data.stoneChargeId &&
-    invoice.externalId &&
-    data.stoneChargeId !== invoice.externalId
-  ) {
-    return jsonError(409, "Identificador da transação Stone não confere.");
-  }
-  if (
-    data.amountCents !== undefined &&
-    data.amountCents !== invoice.amountCents
-  ) {
-    return jsonError(409, "Valor da cobrança não confere com a fatura.");
+
+  if (data.type === "invoice.paid") {
+    const match = assertPaidWebhookMatchesInvoice(
+      {
+        chargeId: data.stoneChargeId,
+        amountCents: data.amountCents,
+        currency: data.currency,
+      },
+      invoice,
+    );
+    if (!match.ok) {
+      return jsonError(409, match.reason);
+    }
+  } else if (data.type === "invoice.payment_failed") {
+    if (!data.stoneChargeId || data.stoneChargeId !== invoice.externalId) {
+      return jsonError(409, "Cobrança não pertence a esta fatura.");
+    }
   }
 
   const result = await ingestWebhookEvent({
@@ -183,7 +192,9 @@ async function enqueueVerifiedStoneEvent(data: {
     eventId: data.eventId,
     type: data.type,
     invoiceId: data.invoiceId,
-    raw: data.raw,
+    chargeId: data.stoneChargeId,
+    amountCents: data.amountCents,
+    currency: data.currency,
   });
 
   await logAudit({

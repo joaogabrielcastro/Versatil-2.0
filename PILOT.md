@@ -107,7 +107,7 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 | Relatórios | `/balcao/relatorios` — financeiro + presença por período, export CSV |
 | Terminal do aluno | `/imprimir-treino?slug=demo&token=…` — cupom 80mm (requer `KIOSK_ACCESS_SECRET`) |
 | Import CSV | `/balcao/importar` + worker |
-| Webhook gateway | `POST /api/webhooks/gateway` com Bearer `WEBHOOK_INGEST_SECRET` |
+| Webhook Stone | `POST /api/webhooks/stone` — único caminho que liquida fatura |
 | Catraca | `POST /api/turnstile/v1/access` — ver INTEGRACOES.md |
 | Stone (webhook Fase 2) | `POST /api/webhooks/stone` |
 

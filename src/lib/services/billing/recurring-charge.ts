@@ -8,7 +8,11 @@ import {
   withTenantTransaction,
 } from "@/lib/db/with-tenant";
 import { MAX_CHARGE_ATTEMPTS, isChargeableNow } from "@/lib/payments/recurring";
-import { chargeInvoiceOnStone } from "@/lib/services/billing/stone-charge";
+import { eachTenant } from "@/lib/cron/record";
+import {
+  chargeInvoiceOnStone,
+  type StoneChargeSender,
+} from "@/lib/services/billing/stone-charge";
 
 async function activeSubscription(tenantId: string, studentId: string) {
   return withTenantTransaction(tenantId, async (tx) => {
@@ -41,7 +45,7 @@ export async function getAutoRenewStatus(
 ): Promise<AutoRenewStatus> {
   const sub = await activeSubscription(tenantId, studentId);
   return {
-    autoRenew: sub?.autoRenew ?? false,
+    autoRenew: sub?.autoChargePos ?? false,
     hasCard: false,
     provider: sub?.provider ?? "stone_connect",
     hasSubscription: Boolean(sub),
@@ -58,7 +62,7 @@ export async function setAutoRenew(
   await withTenantTransaction(tenantId, async (tx) => {
     await tx
       .update(studentSubscriptions)
-      .set({ autoRenew, provider: autoRenew ? "stone_connect" : sub.provider })
+      .set({ autoChargePos: autoRenew, provider: autoRenew ? "stone_connect" : sub.provider })
       .where(
         and(
           eq(studentSubscriptions.id, sub.id),
@@ -69,10 +73,25 @@ export async function setAutoRenew(
   return { ok: true };
 }
 
+export type ChargeOutcome = "success" | "partial" | "failed";
+
 export interface ChargeRunResult {
   attempted: number;
   charged: number;
+  succeeded: number;
   failed: number;
+  skipped: number;
+}
+
+export function classifyChargeRun(input: {
+  succeeded: number;
+  failed: number;
+  failedTenantIds?: string[];
+}): ChargeOutcome {
+  const tenantFailures = input.failedTenantIds?.length ?? 0;
+  if (input.failed === 0 && tenantFailures === 0) return "success";
+  if (input.succeeded === 0) return "failed";
+  return "partial";
 }
 
 /**
@@ -82,6 +101,7 @@ export interface ChargeRunResult {
 export async function chargeDueInvoicesForTenant(
   tenantId: string,
   now: Date = new Date(),
+  sender?: StoneChargeSender,
 ): Promise<ChargeRunResult> {
   const rows = await withTenantTransaction(tenantId, async (tx) => {
     return tx
@@ -99,7 +119,7 @@ export async function chargeDueInvoicesForTenant(
           eq(studentSubscriptions.studentId, invoices.studentId),
           eq(studentSubscriptions.tenantId, invoices.tenantId),
           eq(studentSubscriptions.active, true),
-          eq(studentSubscriptions.autoRenew, true),
+          eq(studentSubscriptions.autoChargePos, true),
         ),
       )
       .where(
@@ -115,7 +135,13 @@ export async function chargeDueInvoicesForTenant(
       );
   });
 
-  const result: ChargeRunResult = { attempted: 0, charged: 0, failed: 0 };
+  const result: ChargeRunResult = {
+    attempted: 0,
+    charged: 0,
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+  };
 
   for (const row of rows) {
     if (
@@ -126,19 +152,29 @@ export async function chargeDueInvoicesForTenant(
         now,
       })
     ) {
+      result.skipped++;
       continue;
     }
-    if (row.chargeAttempts >= MAX_CHARGE_ATTEMPTS) continue;
+    if (row.chargeAttempts >= MAX_CHARGE_ATTEMPTS) {
+      result.skipped++;
+      continue;
+    }
     result.attempted++;
 
-    const charge = await chargeInvoiceOnStone({
-      tenantId,
-      invoiceId: row.invoiceId,
-    });
-    if (charge.ok) {
+    const charge = await chargeInvoiceOnStone(
+      {
+        tenantId,
+        invoiceId: row.invoiceId,
+      },
+      sender,
+    );
+    if (charge.ok && charge.reused) {
+      result.skipped++;
+    } else if (charge.ok) {
+      result.succeeded++;
       result.charged++;
     } else if (charge.http === 409) {
-      result.charged++;
+      result.skipped++;
     } else {
       result.failed++;
     }
@@ -149,7 +185,11 @@ export async function chargeDueInvoicesForTenant(
 
 export async function chargeDueInvoicesAll(
   now: Date = new Date(),
-): Promise<{ tenants: number } & ChargeRunResult> {
+  sender?: StoneChargeSender,
+  onlyTenantIds?: string[],
+): Promise<
+  { tenants: number; failedTenantIds: string[]; chargeOutcome: ChargeOutcome } & ChargeRunResult
+> {
   const tenantRows = await withBypassRlsTransaction(async (tx) => {
     return tx
       .selectDistinct({ tenantId: studentSubscriptions.tenantId })
@@ -157,22 +197,40 @@ export async function chargeDueInvoicesAll(
       .where(
         and(
           eq(studentSubscriptions.active, true),
-          eq(studentSubscriptions.autoRenew, true),
+          eq(studentSubscriptions.autoChargePos, true),
         ),
       );
   });
 
-  const total: { tenants: number } & ChargeRunResult = {
-    tenants: tenantRows.length,
+  const tenantIds = tenantRows
+    .map((row) => row.tenantId)
+    .filter((id) => !onlyTenantIds || onlyTenantIds.includes(id));
+  const { values, failedTenantIds } = await eachTenant(
+    "charge-open-invoices",
+    tenantIds,
+    (tenantId) => chargeDueInvoicesForTenant(tenantId, now, sender),
+  );
+  const total: {
+    tenants: number;
+    failedTenantIds: string[];
+    chargeOutcome: ChargeOutcome;
+  } & ChargeRunResult = {
+    tenants: tenantIds.length,
+    failedTenantIds,
+    chargeOutcome: "success",
     attempted: 0,
     charged: 0,
+    succeeded: 0,
     failed: 0,
+    skipped: 0,
   };
-  for (const { tenantId } of tenantRows) {
-    const r = await chargeDueInvoicesForTenant(tenantId, now);
+  for (const r of values) {
     total.attempted += r.attempted;
     total.charged += r.charged;
+    total.succeeded += r.succeeded;
     total.failed += r.failed;
+    total.skipped += r.skipped;
   }
+  total.chargeOutcome = classifyChargeRun(total);
   return total;
 }

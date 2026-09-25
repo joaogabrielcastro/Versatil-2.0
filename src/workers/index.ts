@@ -18,6 +18,10 @@ import {
 import { processImportJob } from "@/workers/processors/import-job";
 import { processTurnstileSync } from "@/workers/processors/turnstile-sync";
 import { processWebhookJob } from "@/workers/processors/webhook-job";
+import {
+  clearWorkerHeartbeat,
+  writeWorkerHeartbeat,
+} from "@/lib/workers/heartbeat";
 
 const env = getEnv();
 const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
@@ -79,6 +83,15 @@ for (const name of Object.values(QUEUE_NAMES)) {
 
 startQueueMetricsReporter(Object.values(QUEUE_NAMES), redis);
 
+const heartbeat = setInterval(() => {
+  void writeWorkerHeartbeat(redis).catch((err: unknown) => {
+    log.error("worker.heartbeat_failed", {
+      error: err instanceof Error ? err.message : "erro",
+    });
+  });
+}, 10_000);
+void writeWorkerHeartbeat(redis);
+
 log.info("worker.boot_complete", {
   queues: Object.values(QUEUE_NAMES),
   metricsIntervalMs: env.OBSERVABILITY_METRICS_INTERVAL_MS ?? 60_000,
@@ -87,6 +100,8 @@ log.info("worker.boot_complete", {
 
 async function shutdown(signal: string) {
   log.info("worker.shutdown_signal", { signal });
+  clearInterval(heartbeat);
+  await clearWorkerHeartbeat(redis).catch(() => {});
   await shutdownBullTelemetry();
   try {
     await redis.quit();

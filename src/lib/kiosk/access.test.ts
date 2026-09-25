@@ -19,7 +19,7 @@ describe("sanitizeKioskSearchQuery", () => {
 
 describe("kiosk search constants", () => {
   it("exige mínimo de caracteres e limita resultados", () => {
-    expect(KIOSK_SEARCH_MIN_CHARS).toBeGreaterThanOrEqual(2);
+    expect(KIOSK_SEARCH_MIN_CHARS).toBe(3);
     expect(KIOSK_SEARCH_MAX_RESULTS).toBeLessThanOrEqual(50);
   });
 });

@@ -10,6 +10,12 @@ import {
   tecnofitCodeRef,
 } from "@/lib/students/external-ref";
 import { withBypassRlsTransaction, withTenantTransaction } from "@/lib/db/with-tenant";
+import { checkTurnstileRateLimit } from "@/lib/access/rate-limit";
+import {
+  evaluateStudentAccess,
+  gateHttpResult,
+  PUBLIC_ACCESS_DENIAL,
+} from "@/lib/access/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +71,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dispositivo não autorizado." }, { status: 401 });
   }
 
+  const limited = await checkTurnstileRateLimit(tokenHash);
+  if (!limited.ok) {
+    const http = gateHttpResult("rate_limited");
+    return NextResponse.json(http.body, {
+      status: http.status,
+      headers: { "Retry-After": String(limited.retryAfterSec) },
+    });
+  }
+
   await withBypassRlsTransaction(async (tx) => {
     await tx
       .update(turnstileDevices)
@@ -88,7 +103,15 @@ export async function POST(request: Request) {
   const codeRaw = (parsed.studentCode ?? parsed.codigo)?.trim();
   const cpfDigits = parsed.cpf ? onlyDigits(parsed.cpf) : "";
 
-  const result = await withTenantTransaction(device.tenantId, async (tx) => {
+  let result: {
+    allowed: boolean;
+    reason: string | null;
+    accessEventId?: string;
+    studentId?: string;
+    deviceId?: string;
+  };
+  try {
+    result = await withTenantTransaction(device.tenantId, async (tx) => {
     let student: { id: string; status: string } | null = null;
 
     if (parsed.studentId) {
@@ -143,46 +166,50 @@ export async function POST(request: Request) {
         allowed: false,
         reason: "student_not_found",
       });
-      return { allowed: false as const, reason: "Aluno não encontrado." };
+      return { allowed: false as const, reason: PUBLIC_ACCESS_DENIAL };
     }
 
-    if (student.status === "active") {
-      const [ev] = await tx
-        .insert(accessEvents)
-        .values({
-          tenantId: device.tenantId,
+    const decision = await evaluateStudentAccess(
+      tx,
+      device.tenantId,
+      student.id,
+    );
+      if (decision.allowed) {
+        const [ev] = await tx
+          .insert(accessEvents)
+          .values({
+            tenantId: device.tenantId,
+            studentId: student.id,
+            deviceId: device.id,
+            allowed: true,
+            reason: null,
+          })
+          .returning({ id: accessEvents.id });
+        return {
+          allowed: true as const,
+          reason: null,
+          accessEventId: ev!.id,
           studentId: student.id,
           deviceId: device.id,
-          allowed: true,
-          reason: null,
-        })
-        .returning({ id: accessEvents.id });
-      return {
-        allowed: true as const,
-        reason: null,
-        accessEventId: ev!.id,
+        };
+      }
+
+      await tx.insert(accessEvents).values({
+        tenantId: device.tenantId,
         studentId: student.id,
         deviceId: device.id,
+        allowed: false,
+        reason: decision.internalReason,
+      });
+      return {
+        allowed: false as const,
+        reason: PUBLIC_ACCESS_DENIAL,
       };
-    }
-
-    const reason =
-      student.status === "delinquent" ? "inadimplente" : "inativo";
-    await tx.insert(accessEvents).values({
-      tenantId: device.tenantId,
-      studentId: student.id,
-      deviceId: device.id,
-      allowed: false,
-      reason,
-    });
-    return {
-      allowed: false as const,
-      reason:
-        student.status === "delinquent"
-          ? "Aluno inadimplente."
-          : "Aluno inativo.",
-    };
   });
+  } catch {
+    const http = gateHttpResult("unavailable");
+    return NextResponse.json(http.body, { status: http.status });
+  }
 
   if (result.allowed && "accessEventId" in result && getEnv().TURNSTILE_PUSH_URL) {
     await getQueue("turnstileSync").add(
@@ -203,7 +230,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ open: true });
   }
   return NextResponse.json(
-    { open: false, message: result.reason },
+    { open: false, message: PUBLIC_ACCESS_DENIAL },
     { status: 403 },
   );
 }

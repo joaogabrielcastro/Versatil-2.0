@@ -65,6 +65,9 @@ export function StudentSubscriptionsPanel({
   const [dateError, setDateError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [renewEnd, setRenewEnd] = useState("");
+  const [changePlanId, setChangePlanId] = useState("");
 
   async function createSub(e: React.FormEvent) {
     e.preventDefault();
@@ -183,6 +186,33 @@ export function StudentSubscriptionsPanel({
             Associar plano
           </Button>
         </form>
+        <label className="mt-3 block text-xs text-muted-foreground">
+          Motivo do cancelamento
+          <input
+            className="mt-1 w-full rounded-md border border-border px-2 py-1 text-sm"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </label>
+        <label className="mt-2 block text-xs text-muted-foreground">
+          Plano da troca no próximo ciclo
+          <select
+            className="mt-1 w-full rounded-md border border-border px-2 py-1 text-sm"
+            value={changePlanId}
+            onChange={(e) => setChangePlanId(e.target.value)}
+          >
+            <option value="">Selecione</option>
+            {plans.filter((p) => p.active).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mt-2 block text-xs text-muted-foreground">
+          Novo fim da vigência
+          <BrDateInput withTime className="mt-1" value={renewEnd} onChange={setRenewEnd} />
+        </label>
       </div>
       <div>
         <h3 className="text-sm font-medium">Histórico</h3>
@@ -200,8 +230,125 @@ export function StudentSubscriptionsPanel({
                   {formatDateTimeBr(s.startsAt)}
                   {s.endsAt ? ` → ${formatDateTimeBr(s.endsAt)}` : ""}
                 </div>
-                <div className="text-xs capitalize">
-                  {s.active ? "ativa" : "inativa"}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || reason.trim().length < 3}
+                    onClick={() =>
+                      void (async () => {
+                        setBusy(true);
+                        setErr(null);
+                        const res = await fetch(
+                          `/api/students/${studentId}/subscriptions/${s.id}/cancel`,
+                          {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ reason }),
+                          },
+                        );
+                        setBusy(false);
+                        if (!res.ok) {
+                          setErr(await readApiError(res, "Não foi possível cancelar."));
+                          return;
+                        }
+                        setSuccess("Cancelamento registrado.");
+                        await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
+                      })()
+                    }
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || !changePlanId}
+                    onClick={() =>
+                      void (async () => {
+                        setBusy(true);
+                        setErr(null);
+                        const res = await fetch(
+                          `/api/students/${studentId}/subscriptions/${s.id}/plan-change`,
+                          {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ planId: changePlanId }),
+                          },
+                        );
+                        setBusy(false);
+                        if (!res.ok) {
+                          setErr(await readApiError(res, "Não foi possível agendar a troca."));
+                          return;
+                        }
+                        setSuccess("Troca agendada para o próximo ciclo.");
+                        await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
+                      })()
+                    }
+                  >
+                    Agendar troca
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      void (async () => {
+                        setBusy(true);
+                        const res = await fetch(
+                          `/api/students/${studentId}/subscriptions/${s.id}/plan-change`,
+                          { method: "DELETE", credentials: "include" },
+                        );
+                        setBusy(false);
+                        if (!res.ok) {
+                          setErr(await readApiError(res, "Não foi possível desfazer a troca."));
+                          return;
+                        }
+                        setSuccess("Troca agendada removida.");
+                        await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
+                      })()
+                    }
+                  >
+                    Desistir da troca
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void (async () => {
+                        const end = parseDateBr(renewEnd);
+                        if (!end) {
+                          setDateError("Informe o novo fim da vigência.");
+                          return;
+                        }
+                        setBusy(true);
+                        const res = await fetch(
+                          `/api/students/${studentId}/subscriptions/${s.id}/renew`,
+                          {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ endsAt: end.toISOString() }),
+                          },
+                        );
+                        setBusy(false);
+                        if (!res.ok) {
+                          setErr(await readApiError(res, "Não foi possível renovar."));
+                          return;
+                        }
+                        setSuccess("Vigência renovada.");
+                        await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
+                      })()
+                    }
+                  >
+                    Renovar prazo
+                  </Button>
                 </div>
               </li>
             ))

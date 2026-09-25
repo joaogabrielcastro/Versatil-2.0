@@ -51,7 +51,10 @@ export async function ingestWebhookEvent(
       return found ?? null;
     });
     existingStatus = row?.status ?? null;
-    if (existingStatus === "processed") {
+    if (
+      existingStatus === "processed" ||
+      existingStatus === "rejected"
+    ) {
       return { queued: false, deduped: true };
     }
   }
@@ -64,6 +67,21 @@ export async function ingestWebhookEvent(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (/already exists|duplicat/i.test(message)) {
+      if (existingStatus === "failed") {
+        const queue = getQueue("webhooks");
+        const stuck = await queue.getJob(
+          `wh:${payload.tenantId}:${payload.provider}:${payload.eventId}`,
+        );
+        if (stuck) {
+          await stuck.retry();
+          return { queued: true, deduped: false };
+        }
+        await queue.add("webhook", payload, {
+          ...WEBHOOK_JOB_OPTS,
+          jobId: `wh:${payload.tenantId}:${payload.provider}:${payload.eventId}:r${Date.now()}`,
+        });
+        return { queued: true, deduped: false };
+      }
       return { queued: true, deduped: true };
     }
     throw err;
@@ -105,6 +123,30 @@ export async function markWebhookProcessed(
         status: "processed",
         processedAt: new Date(),
         lastError: null,
+      })
+      .where(
+        and(
+          eq(webhookDedupe.tenantId, tenantId),
+          eq(webhookDedupe.provider, provider),
+          eq(webhookDedupe.eventId, eventId),
+        ),
+      );
+  });
+}
+
+export async function markWebhookRejected(
+  tenantId: string,
+  provider: string,
+  eventId: string,
+  error: string,
+): Promise<void> {
+  await withBypassRlsTransaction(async (tx) => {
+    await tx
+      .update(webhookDedupe)
+      .set({
+        status: "rejected",
+        processedAt: new Date(),
+        lastError: error.slice(0, 500),
       })
       .where(
         and(

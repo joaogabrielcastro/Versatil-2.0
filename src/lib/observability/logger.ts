@@ -24,7 +24,10 @@ function sanitizeValue(v: unknown): unknown {
   return String(v);
 }
 
-function replacer(_key: string, val: unknown): unknown {
+function replacer(key: string, val: unknown): unknown {
+  if (/cpf|password|token|secret|authorization|cookie|payload/i.test(key)) {
+    return "[redacted]";
+  }
   if (typeof val === "string" && val.length > MAX_STRING) {
     return truncate(val);
   }

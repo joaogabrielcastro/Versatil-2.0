@@ -248,6 +248,8 @@ async function main() {
             startsAt,
             endsAt: null,
             active: true,
+            priceCents: 9900,
+            billingInterval: "monthly",
           })
           .returning({ id: studentSubscriptions.id });
         createdSubs += 1;

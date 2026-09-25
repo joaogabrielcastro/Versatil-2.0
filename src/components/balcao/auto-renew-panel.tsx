@@ -58,10 +58,10 @@ export function AutoRenewPanel({ studentId }: { studentId: string }) {
 
   return (
     <div>
-      <h3 className="text-sm font-medium">Renovação automática (Stone)</h3>
+      <h3 className="text-sm font-medium">Envio automático à maquininha</h3>
       {!s.hasSubscription ? (
         <p className="mt-1 text-xs text-muted-foreground">
-          Associe uma assinatura ativa para habilitar a renovação automática.
+          Associe uma assinatura ativa para habilitar o envio à maquininha.
         </p>
       ) : (
         <div className="mt-2 space-y-2 text-sm">
@@ -70,7 +70,7 @@ export function AutoRenewPanel({ studentId }: { studentId: string }) {
             <span className={s.autoRenew ? "text-green-700" : "text-muted-foreground"}>
               {s.autoRenew ? "ativa" : "desativada"}
             </span>
-            . O cron envia a fatura vencida à maquininha Stone (serial padrão).
+            . Envia a fatura em aberto ao POS. Não renova o contrato nem repete cobrança com resultado desconhecido.
           </p>
           <Button
             type="button"
@@ -79,7 +79,7 @@ export function AutoRenewPanel({ studentId }: { studentId: string }) {
             disabled={busy}
             onClick={() => void send(!s.autoRenew)}
           >
-            {s.autoRenew ? "Desativar renovação" : "Ativar renovação"}
+            {s.autoRenew ? "Desativar envio ao POS" : "Ativar envio ao POS"}
           </Button>
           {err ? <p className="text-xs text-red-600">{err}</p> : null}
           {msg ? <p className="text-xs text-green-700">{msg}</p> : null}

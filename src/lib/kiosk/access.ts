@@ -149,5 +149,5 @@ export function sanitizeKioskSearchQuery(raw: string): string {
   return raw.trim().replace(/[%_\\]/g, "").slice(0, 80);
 }
 
-export const KIOSK_SEARCH_MIN_CHARS = 2;
+export { KIOSK_SEARCH_MIN_CHARS } from "@/lib/kiosk/constants";
 export const KIOSK_SEARCH_MAX_RESULTS = 20;

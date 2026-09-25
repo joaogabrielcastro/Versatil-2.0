@@ -9,6 +9,7 @@ export type StoneChargeDecision =
   | { action: "reject_paid" }
   | { action: "reject_void" }
   | { action: "reuse"; externalId: string }
+  | { action: "hold_unknown" }
   | { action: "in_flight" }
   | { action: "create" };
 
@@ -16,6 +17,7 @@ export function decideStoneChargeAction(inv: {
   status: string;
   gatewayChargeStatus: string | null | undefined;
   externalId: string | null | undefined;
+  idempotencyKey?: string | null;
 }): StoneChargeDecision {
   if (inv.status === "paid" || inv.gatewayChargeStatus === "succeeded") {
     return { action: "reject_paid" };
@@ -26,6 +28,9 @@ export function decideStoneChargeAction(inv: {
   if (inv.gatewayChargeStatus === "pending") {
     if (inv.externalId) {
       return { action: "reuse", externalId: inv.externalId };
+    }
+    if (inv.idempotencyKey) {
+      return { action: "hold_unknown" };
     }
     return { action: "in_flight" };
   }

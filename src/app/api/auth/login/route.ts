@@ -9,6 +9,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
 import { tenantUsers } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
+import { clientIp } from "@/lib/http/client-ip";
 import { getTenantIdBySlug } from "@/lib/tenant/resolve";
 import { logAudit } from "@/lib/audit/log";
 
@@ -22,10 +23,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const h = await headers();
-  const ip =
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    h.get("x-real-ip") ??
-    "unknown";
+  const ip = clientIp(h, getEnv().CLIENT_IP_HEADER);
 
   let body: z.infer<typeof bodySchema>;
   try {
@@ -65,6 +63,7 @@ export async function POST(request: Request) {
         id: tenantUsers.id,
         passwordHash: tenantUsers.passwordHash,
         role: tenantUsers.role,
+        sessionVersion: tenantUsers.sessionVersion,
       })
       .from(tenantUsers)
       .where(
@@ -105,6 +104,7 @@ export async function POST(request: Request) {
       typ: "tenant",
       tid: tenantId,
       role: user.role,
+      sv: user.sessionVersion,
     },
     getEnv().JWT_SECRET,
   );

@@ -9,6 +9,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
 import { platformAdmins } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
+import { clientIp } from "@/lib/http/client-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const h = await headers();
-  const ip =
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    h.get("x-real-ip") ??
-    "unknown";
+  const ip = clientIp(h, getEnv().CLIENT_IP_HEADER);
 
   let body: z.infer<typeof bodySchema>;
   try {
@@ -50,6 +48,7 @@ export async function POST(request: Request) {
       .select({
         id: platformAdmins.id,
         passwordHash: platformAdmins.passwordHash,
+        sessionVersion: platformAdmins.sessionVersion,
       })
       .from(platformAdmins)
       .where(eq(platformAdmins.email, body.email.toLowerCase()))
@@ -70,6 +69,7 @@ export async function POST(request: Request) {
       typ: "platform",
       tid: null,
       role: "super_admin",
+      sv: admin.sessionVersion,
     },
     getEnv().JWT_SECRET,
   );

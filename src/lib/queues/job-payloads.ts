@@ -6,6 +6,9 @@ export const webhookJobSchema = z.object({
   eventId: z.string().min(1).max(255),
   type: z.string().min(1).max(128),
   invoiceId: z.string().uuid().optional(),
+  chargeId: z.string().min(1).max(255).optional(),
+  amountCents: z.number().int().nonnegative().optional(),
+  currency: z.string().trim().length(3).optional(),
   raw: z.unknown().optional(),
 });
 

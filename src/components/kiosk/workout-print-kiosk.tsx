@@ -6,6 +6,7 @@ import { AppShellHeader } from "@/components/brand/app-shell-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { WorkoutExercise } from "@/lib/workouts/types";
+import { KIOSK_SEARCH_MIN_CHARS } from "@/lib/kiosk/constants";
 
 type StudentOption = { id: string; fullName: string };
 
@@ -53,7 +54,7 @@ export function WorkoutPrintKiosk({
     async (q: string) => {
       if (!slugReady) return;
       const trimmed = q.trim();
-      if (trimmed.length < 2) {
+      if (trimmed.length < KIOSK_SEARCH_MIN_CHARS) {
         setStudents([]);
         return;
       }
@@ -118,7 +119,7 @@ export function WorkoutPrintKiosk({
         return;
       }
       setStudentName(j.student!.fullName);
-      setStudentCpf(j.student!.cpf);
+      setStudentCpf("");
       setWorkout(j.workout!);
       setDayLabel(j.dayLabel ?? "");
     } catch {
@@ -288,7 +289,7 @@ export function WorkoutPrintKiosk({
         <Button
           type="button"
           className="h-12 w-full text-base"
-          disabled={loadingWorkout || nameFilter.trim().length < 2}
+          disabled={loadingWorkout || nameFilter.trim().length < KIOSK_SEARCH_MIN_CHARS}
           onClick={() => onConfirmName()}
         >
           {loadingWorkout ? "Buscando treino…" : "Ver treino do dia"}

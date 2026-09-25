@@ -81,12 +81,22 @@ export const tenants = pgTable("tenants", {
     .defaultNow(),
 });
 
+export const cronRuns = pgTable("cron_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  job: varchar("job", { length: 64 }).notNull(),
+  ok: boolean("ok").notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }).notNull().defaultNow(),
+  summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default({}),
+  error: varchar("error", { length: 500 }),
+});
+
 export const platformAdmins = pgTable("platform_admins", {
   id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  sessionVersion: integer("session_version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -104,6 +114,7 @@ export const tenantUsers = pgTable(
     email: varchar("email", { length: 255 }).notNull(),
     passwordHash: text("password_hash").notNull(),
     role: userRoleEnum("role").notNull().default("tenant_user"),
+    sessionVersion: integer("session_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -185,8 +196,20 @@ export const studentSubscriptions = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
-    /** Renovação automática: envia a fatura vencida à maquininha Stone. */
+    /** Legado. O envio à maquininha está em autoChargePos. */
     autoRenew: boolean("auto_renew").notNull().default(false),
+    /** Envia faturas em aberto à maquininha. Não renova o contrato. */
+    autoChargePos: boolean("auto_charge_pos").notNull().default(false),
+    priceCents: integer("price_cents").notNull(),
+    billingInterval: varchar("billing_interval", { length: 32 }).notNull(),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
+    cancelEffectiveAt: timestamp("cancel_effective_at", { withTimezone: true }),
+    cancelReason: varchar("cancel_reason", { length: 500 }),
+    cancelRequestedBy: uuid("cancel_requested_by"),
+    scheduledPlanId: uuid("scheduled_plan_id"),
+    scheduledPriceCents: integer("scheduled_price_cents"),
+    scheduledBillingInterval: varchar("scheduled_billing_interval", { length: 32 }),
+    scheduledEffectiveAt: timestamp("scheduled_effective_at", { withTimezone: true }),
     /** Provedor da recorrência (produto: stone_connect). */
     provider: varchar("provider", { length: 32 }),
     /** IDs externos do provedor (legado; recorrência atual não usa cartão salvo). */
@@ -200,6 +223,66 @@ export const studentSubscriptions = pgTable(
     index("student_subscriptions_tenant_idx").on(t.tenantId),
     index("student_subscriptions_student_idx").on(t.studentId),
   ],
+);
+
+export const subscriptionTerms = pgTable("subscription_terms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  subscriptionId: uuid("subscription_id")
+    .notNull()
+    .references(() => studentSubscriptions.id, { onDelete: "cascade" }),
+  planId: uuid("plan_id")
+    .notNull()
+    .references(() => plans.id, { onDelete: "restrict" }),
+  priceCents: integer("price_cents").notNull(),
+  billingInterval: varchar("billing_interval", { length: 32 }).notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  /** A partir de quando o preço deste termo pode gerar fatura. Termo migration usa created_at, não starts_at. */
+  validFrom: timestamp("valid_from", { withTimezone: true }).notNull(),
+  source: varchar("source", { length: 32 }).notNull(),
+  createdBy: uuid("created_by"),
+  note: varchar("note", { length: 500 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const paymentConflicts = pgTable(
+  "payment_conflicts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    chargeId: varchar("charge_id", { length: 255 }).notNull(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    reason: varchar("reason", { length: 500 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("payment_conflicts_tenant_invoice_charge").on(t.tenantId, t.invoiceId, t.chargeId)],
+);
+
+export const billingReviews = pgTable(
+  "billing_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => studentSubscriptions.id, { onDelete: "cascade" }),
+    periodKey: varchar("period_key", { length: 255 }).notNull(),
+    reason: varchar("reason", { length: 500 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("billing_reviews_tenant_period").on(t.tenantId, t.periodKey)],
 );
 
 export const invoices = pgTable(
@@ -232,6 +315,9 @@ export const invoices = pgTable(
     gatewayChargeStatus: varchar("gateway_charge_status", { length: 32 })
       .notNull()
       .default("idle"),
+    /** Chave estável enviada à Stone nesta tentativa. Não reutilizar para outra tentativa. */
+    gatewayIdempotencyKey: varchar("gateway_idempotency_key", { length: 255 }),
+    reconcileAttempts: integer("reconcile_attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

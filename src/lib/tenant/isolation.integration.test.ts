@@ -244,7 +244,8 @@ describe("isolamento multi-tenant (duas academias)", () => {
     ]);
     expect(concurrent.filter((x) => x === "created")).toHaveLength(1);
     expect(
-      concurrent.filter((x) => x === "in_flight" || x === "reuse").length,
+      concurrent.filter((x) => x === "in_flight" || x === "reuse" || x === "hold_unknown")
+        .length,
     ).toBeGreaterThanOrEqual(1);
 
     const crossCharge = await reserveStoneChargeSlot(tenantB, invoiceId);

@@ -47,6 +47,7 @@ interface ConnectWebhookBody {
     id?: string;
     code?: string;
     amount?: number;
+    currency?: string;
     metadata?: Record<string, unknown>;
     order?: { code?: string; metadata?: Record<string, unknown> };
   };
@@ -86,5 +87,15 @@ export function connectWebhookChargeId(
   body: ConnectWebhookBody,
 ): string | undefined {
   const id = body.data?.id;
-  return typeof id === "string" ? id : undefined;
+  return typeof id === "string" && id.trim() ? id : undefined;
+}
+
+/** Moeda só entra se o envelope a trouxer. Ausência não vira BRL. */
+export function connectWebhookCurrency(
+  body: ConnectWebhookBody,
+): string | undefined {
+  const currency = body.data?.currency;
+  if (typeof currency !== "string") return undefined;
+  const normalized = currency.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(normalized) ? normalized : undefined;
 }

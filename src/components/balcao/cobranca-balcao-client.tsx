@@ -43,9 +43,30 @@ function money(cents: number, currency: string) {
   });
 }
 
+type ConflictItem = {
+  id: string;
+  invoiceId: string;
+  invoiceStatus: string;
+  studentName: string;
+  chargeId: string;
+  amountCents: number;
+  currency: string;
+  reason: string;
+};
+
 export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["open-invoices"], queryFn: fetchOpen });
+  const conflicts = useQuery({
+    queryKey: ["payment-conflicts"],
+    queryFn: async () => {
+      const res = await fetch("/api/billing/payment-conflicts", { credentials: "include" });
+      if (res.status === 403) return { items: [] as ConflictItem[] };
+      if (!res.ok) throw new Error("Falha ao carregar conciliações.");
+      return (await res.json()) as { items: ConflictItem[] };
+    },
+    enabled: isAdmin,
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -136,6 +157,36 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
           setMsg(null);
         }}
       />
+      {isAdmin && (conflicts.data?.items.length ?? 0) > 0 ? (
+        <Card>
+          <CardContent className="space-y-2 py-4 text-sm">
+            <h2 className="font-medium">Conciliação pendente</h2>
+            <p className="text-xs text-muted-foreground">
+              Somente consulta. Esta tela não quita, estorna nem reativa a assinatura.
+              O pagamento ficou identificado na fatura anulada.
+            </p>
+            <ul className="space-y-2">
+              {conflicts.data?.items.map((item) => (
+                <li key={item.id} className="rounded-md border border-border p-2">
+                  <div>{item.studentName}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Fatura {item.invoiceId} · estado {item.invoiceStatus} · pendência aberta
+                  </div>
+                  <div>
+                    Cobrança {item.chargeId} ·{" "}
+                    {(item.amountCents / 100).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: item.currency,
+                    })}{" "}
+                    ({item.currency})
+                  </div>
+                  <div className="text-xs">{item.reason}</div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardContent className="pt-5 text-sm text-muted-foreground">
           <p>

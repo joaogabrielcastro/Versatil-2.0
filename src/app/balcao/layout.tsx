@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { BalcaoNav } from "@/components/balcao/balcao-nav";
 import { getSession } from "@/lib/auth/session";
 import { tenants } from "@/lib/db/schema";
@@ -10,6 +11,9 @@ export default async function BalcaoLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
+  if (!session || session.typ !== "tenant" || !session.tid) {
+    redirect("/login");
+  }
   const isAdmin = session?.role === "tenant_admin";
 
   let tenantSlug = "";

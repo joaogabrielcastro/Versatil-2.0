@@ -13,6 +13,7 @@ try {
     "utf8",
   ).trim();
   if (url) process.env.DATABASE_URL = url;
+  process.env.PLATFORM_DATABASE_URL = process.env.DATABASE_URL;
 } catch {
   /* globalSetup grava o arquivo; se faltar, DATABASE_URL do ambiente é usada */
 }

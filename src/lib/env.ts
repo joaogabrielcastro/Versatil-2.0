@@ -22,9 +22,24 @@ const envSchema = z.object({
   SKIP_MIGRATIONS: z.enum(["true", "false"]).optional(),
   /** Bearer para GET /api/cron/recalculate-students (Coolify / cron externo) */
   CRON_SECRET: z.string().min(8).optional(),
-  /** Bearer para POST /api/webhooks/gateway (ingestão idempotente → fila) */
+  /** Legado. POST /api/webhooks/gateway não liquida mais faturas. */
   WEBHOOK_INGEST_SECRET: z.string().min(16).optional(),
-  /** Bearer para POST /api/webhooks/stone (quando integração Stone estiver ativa) */
+  /** Login membro de versatil_platform. Sem isto, o bypass usa DATABASE_URL. */
+  PLATFORM_DATABASE_URL: z
+    .string()
+    .refine(
+      (v) => v.startsWith("postgres://") || v.startsWith("postgresql://"),
+      "PLATFORM_DATABASE_URL deve ser PostgreSQL",
+    )
+    .optional(),
+  /** Ignorado. O compose não tem proxy; não use X-Forwarded-For. */
+  TRUST_PROXY: z.enum(["true", "false"]).optional(),
+  /**
+   * Cabeçalho único que o proxy substitui (não encadeia).
+   * `x-forwarded-for` é recusado. Sem isso o IP do cliente fica "direct".
+   */
+  CLIENT_IP_HEADER: z.string().min(1).max(64).optional(),
+  /** Bearer do contrato interno POST /api/webhooks/stone */
   STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
   /**
    * Legado. Tokens de kiosk são por academia (`kiosk_devices`).

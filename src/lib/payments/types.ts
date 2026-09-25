@@ -44,6 +44,7 @@ export class PaymentProviderError extends Error {
     public readonly provider: PaymentProviderId,
     message: string,
     public readonly cause?: unknown,
+    public readonly outcome: "unknown" | "rejected" = "rejected",
   ) {
     super(message);
     this.name = "PaymentProviderError";

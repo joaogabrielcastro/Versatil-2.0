@@ -16,7 +16,11 @@ export interface SettleManualInput {
   actorUserId?: string | null;
 }
 
-export type SettleStatus = "settled" | "already_settled" | "not_found";
+export type SettleStatus =
+  | "settled"
+  | "already_settled"
+  | "not_found"
+  | "blocked_pending_pos";
 
 export interface SettleResult {
   status: SettleStatus;
@@ -38,6 +42,8 @@ export interface TerminalChargeInput {
   terminalSerial?: string;
   paymentType?: "credit" | "debit";
   installments?: number;
+  /** Mesma chave em timeout ou resposta perdida. Não gera segunda cobrança. */
+  idempotencyKey?: string;
 }
 
 export interface TerminalChargeResult {
@@ -54,6 +60,9 @@ export interface RawWebhookRequest {
 export interface ChargeStatusResult {
   externalId: string;
   status: "paid" | "failed" | "pending";
+  /** Presentes só se a consulta devolver. Ausência não confirma pagamento. */
+  amountCents?: number;
+  currency?: string;
 }
 
 /**

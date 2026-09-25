@@ -92,6 +92,8 @@ Implementação: `src/lib/payments/providers/stone/` — **não inventamos outro
 | Auth | `Authorization: Basic base64(secretKey:)` |
 | Header POS | `ServiceRefererName: {id da parceria Stone Partner Program}` |
 | Timeout | 20s |
+| Idempotência | A chave `stone:{invoiceId}:{tentativa}` é gravada antes do HTTP, mas o header `Idempotency-Key` **não** é enviado. A documentação pública do Pagar.me Core v5 não foi tomada como garantia. Se a resposta se perde, a fatura fica pendente e uma nova cobrança na mesma fatura é recusada (409) até conferência manual na maquininha. |
+| Conciliação | `GET /api/cron/reconcile-stone` consulta `GET /charges/{id}`. Só quita se status, id, `amount` e `currency` baterem com a fatura. Após 5 consultas sem confirmação, exige intervenção manual. |
 | Payload | `closed: false` + `poi_payment_settings.devices_serial_number` + `payment_setup` + `metadata.invoiceId` |
 | Serial | serial do POS (ou o padrão do tenant) |
 
@@ -113,7 +115,7 @@ Dois caminhos **fail-closed** (sem autenticação válida a fatura **não** é m
 | Header | `X-Hub-Signature` / `X-Hub-Signature-256` (HMAC-SHA256 do body) |
 | Segredo | `webhookSecret` do tenant (Pagamentos → Stone Connect) |
 | Eventos mapeados | `charge.paid` / `order.paid` → `invoice.paid`; `charge.payment_failed` / `charge.failed` → `invoice.payment_failed` |
-| Conferência | fatura do tenant, `stoneChargeId` vs `externalId`, valor vs `amountCents` |
+| Conferência | fatura do tenant; `data.id` igual a `externalId`; `data.amount` igual a `amountCents`; `data.currency` igual à moeda da fatura. Sem id, valor ou moeda o evento **não** liquida. Moeda ausente não é tratada como BRL. |
 
 **B — Contrato interno mapeado (integração/gateway local)**
 
@@ -128,11 +130,15 @@ Dois caminhos **fail-closed** (sem autenticação válida a fatura **não** é m
   "eventId": "id-unico-do-evento",
   "type": "invoice.paid",
   "invoiceId": "uuid-da-fatura-no-versatil",
-  "stoneChargeId": "opcional-id-cobranca",
+  "stoneChargeId": "id-da-cobranca-na-stone",
   "amountCents": 9900,
-  "raw": {}
+  "currency": "BRL"
 }
 ```
+
+`invoice.paid` sem `stoneChargeId`, `amountCents` ou `currency` responde 400. Valor, moeda ou cobrança divergentes respondem 409 e a fatura permanece aberta. A cobrança precisa ser a mesma já gravada em `invoices.external_id`.
+
+`POST /api/webhooks/gateway` **não liquida faturas** (HTTP 410). O corpo antigo não comprovava pagamento. Não reative esse caminho.
 
 | `type` | Efeito no Versátil |
 |--------|---------------------|
@@ -153,9 +159,19 @@ O contrato Connect disponível neste repositório **não documenta** endpoint de
 
 Cron `GET /api/cron/charge-open-invoices` → `chargeDueInvoicesAll` → `chargeInvoiceOnStone` (mesmo POS). Não há cartão salvo / cobrança silenciosa online no contrato Connect deste repo.
 
-POS offline, timeout ou recusa: fatura permanece aberta, backoff 1/3/7, no máximo 4 tentativas. Cobrança `pending` com `externalId` é **reutilizada** (não duplica).
+POS offline, timeout ou recusa: fatura permanece aberta, backoff 1/3/7, no máximo 4 tentativas. Cobrança `pending` com `externalId` é reutilizada. Cobrança `pending` sem `externalId` não é reenviada.
 
-### 2.5 Homologação
+### 2.5 Homologação na academia
+
+Isto não foi executado. Na academia, com POS e catraca reais:
+
+1. Configure Stone e o serial do POS. Confirme que uma credencial inválida mostra erro na tela, sem gravar a chave em claro.
+2. Cobrança aprovada: cobrar uma fatura de teste → a maquininha aprova → webhook ou conciliação grava `paid` → a catraca responde `{open:true}` para esse aluno.
+3. Recusa: a fatura continua aberta e a catraca não libera.
+4. Timeout ou queda de rede no meio da cobrança: não aperte cobrar de novo na mesma fatura. O sistema responde 409. Confira na maquininha se a venda saiu antes de registrar o pagamento à mão.
+5. Evento repetido do webhook: a fatura fica paga uma vez só.
+6. Aluno inadimplente ou assinatura inativa: a catraca responde 403 com "Acesso não autorizado." e não abre.
+7. Equipamento fora: o handler responde 503 `{open:false}` se o banco falhar. A porta não abre.
 
 Testes unitários/integrados **não** equivalem a homologação Stone. Falta:
 

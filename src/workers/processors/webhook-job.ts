@@ -3,8 +3,14 @@ import { and, eq } from "drizzle-orm";
 import {
   invoiceTimelineEvents,
   invoices,
+  paymentConflicts,
 } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import {
+  assertFailureChargeMatchesInvoice,
+  assertPaidWebhookMatchesInvoice,
+  WebhookSettlementRejected,
+} from "@/lib/payments/paid-webhook-match";
 import { nextStateAfterPaymentFailed } from "@/lib/payments/recurring";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 import type { WebhookJobPayload } from "@/lib/queues/job-payloads";
@@ -12,6 +18,7 @@ import {
   markWebhookFailed,
   markWebhookProcessed,
   markWebhookProcessing,
+  markWebhookRejected,
 } from "@/lib/webhooks/ingest";
 
 export async function processWebhookJob(data: WebhookJobPayload): Promise<void> {
@@ -23,15 +30,22 @@ export async function processWebhookJob(data: WebhookJobPayload): Promise<void> 
     await markWebhookProcessed(tenantId, provider, eventId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof WebhookSettlementRejected) {
+      await markWebhookRejected(tenantId, provider, eventId, message);
+      return;
+    }
     await markWebhookFailed(tenantId, provider, eventId, message);
     throw err;
   }
 }
 
 async function applyWebhookEvent(data: WebhookJobPayload): Promise<void> {
-  const { tenantId, type, invoiceId, raw, provider, eventId } = data;
+  const { tenantId, type, invoiceId, provider, eventId } = data;
 
-  if (type === "invoice.paid" && invoiceId) {
+  if (type === "invoice.paid") {
+    if (!invoiceId) {
+      throw new WebhookSettlementRejected("Evento pago sem fatura.");
+    }
     let studentId: string | null = null;
     let markedPaid = false;
     await withTenantTransaction(tenantId, async (tx) => {
@@ -40,15 +54,71 @@ async function applyWebhookEvent(data: WebhookJobPayload): Promise<void> {
           id: invoices.id,
           studentId: invoices.studentId,
           status: invoices.status,
+          amountCents: invoices.amountCents,
+          currency: invoices.currency,
+          externalId: invoices.externalId,
         })
         .from(invoices)
         .where(and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)))
+        .for("update")
         .limit(1);
       if (!inv) {
-        return;
+        throw new WebhookSettlementRejected("Fatura não encontrada neste tenant.");
+      }
+      const match = assertPaidWebhookMatchesInvoice(
+        {
+          chargeId: data.chargeId,
+          amountCents: data.amountCents,
+          currency: data.currency,
+        },
+        inv,
+      );
+      if (!match.ok) {
+        throw new WebhookSettlementRejected(match.reason);
       }
       studentId = inv.studentId;
       if (inv.status === "paid") {
+        return;
+      }
+      if (inv.status === "void") {
+        await tx
+          .update(invoices)
+          .set({
+            lastChargeError:
+              "Pagamento confirmado após anulação. Fatura permanece anulada. Conciliação manual.",
+          })
+          .where(and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)));
+        await tx.insert(invoiceTimelineEvents).values({
+          tenantId,
+          invoiceId,
+          type: "note",
+          payload: {
+            message:
+              "Pagamento confirmado depois da anulação. Fatura permanece anulada e a assinatura não foi reativada. Conciliação manual.",
+            chargeId: data.chargeId ?? null,
+            amountCents: data.amountCents ?? null,
+            currency: data.currency ?? null,
+          },
+        });
+        await tx
+          .insert(paymentConflicts)
+          .values({
+            tenantId,
+            invoiceId,
+            chargeId: data.chargeId ?? "sem-cobranca",
+            eventId,
+            amountCents: data.amountCents ?? inv.amountCents,
+            currency: (data.currency ?? inv.currency).toUpperCase(),
+            reason:
+              "Pagamento confirmado após anulação. Fatura permanece anulada. Assinatura não reativada.",
+          })
+          .onConflictDoNothing({
+            target: [
+              paymentConflicts.tenantId,
+              paymentConflicts.invoiceId,
+              paymentConflicts.chargeId,
+            ],
+          });
         return;
       }
       await tx
@@ -67,7 +137,14 @@ async function applyWebhookEvent(data: WebhookJobPayload): Promise<void> {
         tenantId,
         invoiceId,
         type: "webhook_received",
-        payload: { provider, eventId, type, raw },
+        payload: {
+          provider,
+          eventId,
+          type,
+          chargeId: data.chargeId,
+          amountCents: data.amountCents,
+          currency: data.currency,
+        },
       });
       markedPaid = true;
     });
@@ -98,12 +175,18 @@ async function applyWebhookEvent(data: WebhookJobPayload): Promise<void> {
           studentId: invoices.studentId,
           status: invoices.status,
           chargeAttempts: invoices.chargeAttempts,
+          externalId: invoices.externalId,
         })
         .from(invoices)
         .where(and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)))
+        .for("update")
         .limit(1);
       if (!inv) {
-        return;
+        throw new WebhookSettlementRejected("Fatura não encontrada neste tenant.");
+      }
+      const charge = assertFailureChargeMatchesInvoice(data.chargeId, inv);
+      if (!charge.ok) {
+        throw new WebhookSettlementRejected(charge.reason);
       }
       const next = nextStateAfterPaymentFailed({
         invoiceStatus: inv.status,
@@ -132,7 +215,7 @@ async function applyWebhookEvent(data: WebhookJobPayload): Promise<void> {
           provider,
           eventId,
           type,
-          raw,
+          chargeId: data.chargeId,
           nextStatus: next.invoiceStatus,
           retryAt: next.nextChargeAttemptAt?.toISOString() ?? null,
         },
