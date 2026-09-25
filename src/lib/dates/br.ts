@@ -40,6 +40,23 @@ export function formatDateTimeBr(value: Date | string | number): string {
   return d.toLocaleString("pt-BR", dateTimeOpts);
 }
 
+/** Ex.: 27/05/2026 14:30 — formato aceito pelo campo de data do balcão. */
+export function formatDateTimeInputBr(value: Date | string | number): string {
+  const d = toDate(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ_BR,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("day")}/${read("month")}/${read("year")} ${read("hour")}:${read("minute")}`;
+}
+
 /** Ex.: 14:30 */
 export function formatTimeBr(value: Date | string | number): string {
   const d = toDate(value);

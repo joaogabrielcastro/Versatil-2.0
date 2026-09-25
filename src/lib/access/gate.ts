@@ -1,4 +1,5 @@
 import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { dueBeforeToday } from "@/lib/billing/due-day-sql";
 import { invoices, studentSubscriptions, subscriptionTerms } from "@/lib/db/schema";
 import type { DbTransaction } from "@/lib/db/with-tenant";
 import {
@@ -23,7 +24,7 @@ export async function evaluateStudentAccess(
         eq(invoices.tenantId, tenantId),
         eq(invoices.studentId, studentId),
         or(
-          and(eq(invoices.status, "open"), lte(invoices.dueAt, now)),
+          and(eq(invoices.status, "open"), dueBeforeToday(invoices.dueAt, now)),
           eq(invoices.status, "uncollectible"),
         ),
       ),

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
+import { BILLING_INTERVALS } from "@/lib/billing/interval-labels";
 import { plans } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
 const createSchema = z.object({
   name: z.string().min(2).max(255),
   priceCents: z.number().int().nonnegative(),
-  billingInterval: z.enum(["monthly", "semesterly", "yearly"]).optional(),
+  billingInterval: z.enum(BILLING_INTERVALS).optional(),
+  category: z.string().trim().min(1).max(64).optional(),
+  kind: z.enum(["subscription", "fee"]).optional(),
+  termMonths: z.number().int().positive().max(36).nullable().optional(),
 });
 
 export async function GET() {
@@ -58,6 +62,9 @@ export async function POST(request: Request) {
         name: body.name,
         priceCents: body.priceCents,
         billingInterval: body.billingInterval ?? "monthly",
+        category: body.category ?? null,
+        kind: body.kind ?? "subscription",
+        termMonths: body.kind === "fee" ? null : (body.termMonths ?? null),
       })
       .returning();
     return [p];

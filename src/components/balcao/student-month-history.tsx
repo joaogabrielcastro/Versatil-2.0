@@ -1,5 +1,7 @@
 "use client";
 
+import { isInvoiceOverdue } from "@/lib/billing/due-day";
+
 type InvoiceLike = {
   status: string;
   dueAt: string;
@@ -55,7 +57,7 @@ function summarizeMonth(list: InvoiceLike[], now: Date): MonthStatus {
   if (list.length === 0) return "other";
   const hasOverdue = list.some(
     (inv) =>
-      inv.status === "open" && new Date(inv.dueAt).getTime() <= now.getTime(),
+      inv.status === "open" && isInvoiceOverdue(inv.dueAt, now),
   );
   if (hasOverdue || list.some((inv) => inv.status === "uncollectible")) {
     return "overdue";

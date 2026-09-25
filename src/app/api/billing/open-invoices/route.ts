@@ -1,6 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/json";
+import { isInvoiceOverdue } from "@/lib/billing/due-day";
 import { getSession } from "@/lib/auth/session";
 import { invoices, students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
@@ -25,6 +26,10 @@ export async function GET() {
         currency: invoices.currency,
         dueAt: invoices.dueAt,
         status: invoices.status,
+        gatewayChargeStatus: invoices.gatewayChargeStatus,
+        externalId: invoices.externalId,
+        gatewayIdempotencyKey: invoices.gatewayIdempotencyKey,
+        lastChargeError: invoices.lastChargeError,
       })
       .from(invoices)
       .innerJoin(students, eq(students.id, invoices.studentId))
@@ -37,7 +42,7 @@ export async function GET() {
   return NextResponse.json({
     items: items.map((row) => ({
       ...row,
-      overdue: row.dueAt.getTime() <= now.getTime(),
+      overdue: isInvoiceOverdue(row.dueAt, now),
     })),
   });
 }

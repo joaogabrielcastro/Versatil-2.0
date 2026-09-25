@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  CalendarDays,
   CreditCard,
   DoorOpen,
   Dumbbell,
@@ -43,6 +44,7 @@ function buildLinks(tenantSlug: string): NavLink[] {
     { href: "/balcao/presenca", label: "Presença", icon: DoorOpen },
     { href: "/balcao/treinos", label: "Treinos", icon: Dumbbell },
     { href: "/balcao/planos", label: "Planos", icon: Wallet },
+    { href: "/balcao/grade", label: "Grade", icon: CalendarDays },
     { href: "/balcao/estoque", label: "Estoque", icon: Package },
     { href: "/balcao/relatorios", label: "Relatórios", icon: BarChart3 },
     {

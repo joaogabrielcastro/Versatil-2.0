@@ -19,12 +19,29 @@ export function appHostnameFromUrl(raw: string | undefined | null): string | nul
   }
 }
 
+function hostnameFromHost(host: string): string {
+  const trimmed = host.trim().toLowerCase();
+  if (trimmed.startsWith("[")) {
+    const end = trimmed.indexOf("]");
+    return end > 1 ? trimmed.slice(1, end) : trimmed;
+  }
+  const ipv4 = trimmed.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/);
+  if (ipv4?.[1]) return ipv4[1];
+  return trimmed.split(":")[0] ?? trimmed;
+}
+
+function isIpAddress(hostname: string): boolean {
+  if (hostname.includes(":")) return true;
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
 /** Extrai slug confiável apenas do Host (nunca de header do cliente). */
 export function extractTenantSlugFromHost(
   host: string,
   appUrl?: string | null,
 ): string | null {
-  const hostname = host.split(":")[0]?.toLowerCase() ?? "";
+  const hostname = hostnameFromHost(host);
+  if (isIpAddress(hostname) || hostname === "localhost") return null;
   const parts = hostname.split(".");
   if (parts.length < 3) return null;
   const sub = parts[0];

@@ -14,6 +14,9 @@ describe("extractTenantSlugFromHost", () => {
   it("não usa host sem subdomínio de academia", () => {
     expect(extractTenantSlugFromHost("localhost:3000")).toBeNull();
     expect(extractTenantSlugFromHost("www.versatil.app")).toBeNull();
+    expect(extractTenantSlugFromHost("127.0.0.1")).toBeNull();
+    expect(extractTenantSlugFromHost("127.0.0.1:3011")).toBeNull();
+    expect(extractTenantSlugFromHost("nao-e-academia.test")).toBeNull();
   });
 });
 

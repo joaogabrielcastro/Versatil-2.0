@@ -1,5 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import type { BillingInterval } from "@/lib/billing/interval-labels";
+import {
+  isBillingInterval,
+  type BillingInterval,
+} from "@/lib/billing/interval-labels";
 import {
   invoicesToVoid,
   nextCycleDue,
@@ -20,7 +23,7 @@ type ActionResult =
   | { ok: false; http: number; error: string };
 
 function intervalOf(value: string): BillingInterval {
-  if (value === "semesterly" || value === "yearly" || value === "monthly") return value;
+  if (isBillingInterval(value)) return value;
   return "monthly";
 }
 
@@ -95,7 +98,7 @@ export async function cancelSubscription(input: {
         ok: false,
         http: 409,
         error:
-          "Há cobrança na maquininha sem confirmação. Concilie antes de cancelar. Cancelar aqui não cancela a venda na Stone.",
+          "Aguardando confirmação da maquininha. Consulte a transação antes de cancelar. Cancelar aqui não cancela a venda na Stone.",
       };
     }
     for (const id of decision.voidIds) {
@@ -111,7 +114,7 @@ export async function cancelSubscription(input: {
           ok: false,
           http: 409,
           error:
-            "Há cobrança na maquininha sem confirmação. Concilie antes de cancelar. Cancelar aqui não cancela a venda na Stone.",
+            "Aguardando confirmação da maquininha. Consulte a transação antes de cancelar. Cancelar aqui não cancela a venda na Stone.",
         };
       }
       await tx
@@ -171,6 +174,13 @@ export async function schedulePlanChange(input: {
       .where(and(eq(plans.id, input.planId), eq(plans.tenantId, input.tenantId)))
       .limit(1);
     if (!plan) return { ok: false, http: 404, error: "Plano não encontrado." };
+    if (plan.kind === "fee") {
+      return {
+        ok: false,
+        http: 400,
+        error: "Taxa avulsa não substitui um plano. Lance a cobrança na ficha do aluno.",
+      };
+    }
     const due = nextCycleDue(
       sub.startsAt,
       intervalOf(sub.billingInterval),
@@ -203,7 +213,7 @@ export async function schedulePlanChange(input: {
         ok: false,
         http: 409,
         error:
-          "O próximo ciclo está na maquininha sem confirmação. Concilie antes de agendar a troca.",
+          "Aguardando confirmação da maquininha. Consulte a transação antes de agendar a troca.",
       };
     }
     if (existing && existing.status === "open") {
@@ -270,7 +280,8 @@ export async function clearScheduledPlanChange(input: {
       return {
         ok: false,
         http: 409,
-        error: "A fatura do próximo ciclo está na maquininha sem confirmação.",
+        error:
+          "Aguardando confirmação da maquininha. Consulte a transação antes de desistir da troca.",
       };
     }
     if (openInvoice && openInvoice.status === "open" && openInvoice.amountCents !== sub.priceCents) {
@@ -330,6 +341,13 @@ export async function renewTerm(input: {
       .where(and(eq(plans.id, planId), eq(plans.tenantId, input.tenantId)))
       .limit(1);
     if (!plan) return { ok: false, http: 404, error: "Plano não encontrado." };
+    if (plan.kind === "fee") {
+      return {
+        ok: false,
+        http: 400,
+        error: "Taxa avulsa não substitui um plano. Lance a cobrança na ficha do aluno.",
+      };
+    }
     const startsAt = sub.endsAt;
     const existingTerms = await tx
       .select({

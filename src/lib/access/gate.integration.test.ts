@@ -105,4 +105,60 @@ describe("decisão da catraca no momento do acesso", () => {
     });
     expect(logged[0]?.reason).toBe("inativo");
   });
+
+  it("não trata como vencida a fatura do dia civil e bloqueia a partir do dia seguinte", async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const created = await createTenantWithAdmin({
+      name: `Vencimento ${suffix}`,
+      slug: `venc-${suffix}`,
+      adminEmail: `venc-${suffix}@example.com`,
+      adminPassword: "senha-segura-12",
+    });
+    const tenantId = created.tenant.id;
+    const dueToday = new Date("2026-09-25T15:00:00.000Z");
+    const studentId = await withBypassRlsTransaction(async (tx) => {
+      const [plan] = await tx
+        .insert(plans)
+        .values({ tenantId, name: "Mensal", priceCents: 9900, billingInterval: "monthly" })
+        .returning({ id: plans.id });
+      const [student] = await tx
+        .insert(students)
+        .values({ tenantId, fullName: "Vence hoje", cpf: `v${suffix}`, status: "delinquent" })
+        .returning({ id: students.id });
+      await tx.insert(studentSubscriptions).values({
+        tenantId,
+        studentId: student!.id,
+        planId: plan!.id,
+        active: true,
+        priceCents: 9900,
+        billingInterval: "monthly",
+        startsAt: new Date("2026-09-25T03:00:00.000Z"),
+        endsAt: new Date("2026-10-25T13:00:00.000Z"),
+      });
+      await tx.insert(invoices).values({
+        tenantId,
+        studentId: student!.id,
+        amountCents: 9900,
+        currency: "BRL",
+        status: "open",
+        dueAt: dueToday,
+      });
+      return student!.id;
+    });
+
+    const sameMorning = await withTenantTransaction(tenantId, (tx) =>
+      evaluateStudentAccess(tx, tenantId, studentId, new Date("2026-09-25T12:00:00.000Z")),
+    );
+    const afterStoredClock = await withTenantTransaction(tenantId, (tx) =>
+      evaluateStudentAccess(tx, tenantId, studentId, new Date("2026-09-25T18:00:00.000Z")),
+    );
+    const nextCivilDay = await withTenantTransaction(tenantId, (tx) =>
+      evaluateStudentAccess(tx, tenantId, studentId, new Date("2026-09-26T03:00:00.000Z")),
+    );
+
+    expect(sameMorning.allowed).toBe(true);
+    expect(afterStoredClock.allowed).toBe(true);
+    expect(nextCivilDay.allowed).toBe(false);
+    expect(nextCivilDay.internalReason).toBe("inadimplente");
+  });
 });

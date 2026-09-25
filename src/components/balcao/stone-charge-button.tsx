@@ -6,7 +6,13 @@ import { Select } from "@/components/ui/select";
 import { readApiError } from "@/lib/api/read-error";
 
 /** Envia a fatura para pagamento na maquininha Stone (Connect). */
-export function StoneChargeButton({ invoiceId }: { invoiceId: string }) {
+export function StoneChargeButton({
+  invoiceId,
+  disabledReason,
+}: {
+  invoiceId: string;
+  disabledReason?: string | null;
+}) {
   const [paymentType, setPaymentType] = useState<"credit" | "debit">("credit");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -48,12 +54,15 @@ export function StoneChargeButton({ invoiceId }: { invoiceId: string }) {
           type="button"
           size="sm"
           variant="outline"
-          disabled={busy}
+          disabled={busy || Boolean(disabledReason)}
           onClick={() => void charge()}
         >
           Cobrar na maquininha
         </Button>
       </div>
+      {disabledReason ? (
+        <p className="max-w-xs text-right text-xs text-muted-foreground">{disabledReason}</p>
+      ) : null}
       {err ? <p className="text-xs text-red-600">{err}</p> : null}
       {sent ? (
         <p className="text-xs text-green-700">

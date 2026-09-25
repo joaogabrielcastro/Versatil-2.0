@@ -13,6 +13,10 @@ import {
   type BillingInterval,
   billingIntervalLabel,
 } from "@/lib/billing/interval-labels";
+import {
+  groupPlansByCategory,
+  planChargeLabel,
+} from "@/lib/catalog/versatil-table";
 
 type Plan = {
   id: string;
@@ -20,6 +24,9 @@ type Plan = {
   priceCents: number;
   billingInterval: string;
   active: boolean;
+  category: string | null;
+  kind: string;
+  termMonths: number | null;
 };
 
 /** Sugestões rápidas — a academia pode ajustar o nome e o preço. */
@@ -57,6 +64,8 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [category, setCategory] = useState("");
+  const [termMonths, setTermMonths] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -72,6 +81,11 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
       setErr("Preencha nome e preço válidos.");
       return;
     }
+    const months = termMonths.trim() ? Number(termMonths) : null;
+    if (months !== null && (!Number.isInteger(months) || months < 1 || months > 36)) {
+      setErr("O prazo precisa ser um número de meses entre 1 e 36.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     setSuccess(null);
@@ -84,6 +98,8 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
           name: name.trim(),
           priceCents: cents,
           billingInterval: interval,
+          category: category.trim() || undefined,
+          termMonths: months,
         }),
       });
       if (!res.ok) {
@@ -92,8 +108,38 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
       }
       setName("");
       setPrice("");
+      setCategory("");
+      setTermMonths("");
       setSuccess("Plano criado.");
       await qc.invalidateQueries({ queryKey: ["plans"] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadCatalog() {
+    if (!isAdmin) return;
+    setBusy(true);
+    setErr(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/catalog/versatil", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível carregar a tabela."));
+        return;
+      }
+      const body = (await res.json()) as {
+        plansCreated: number;
+        activitiesCreated: number;
+      };
+      setSuccess(
+        `Tabela carregada: ${body.plansCreated} planos e ${body.activitiesCreated} aulas novas. O que já existia foi mantido.`,
+      );
+      await qc.invalidateQueries({ queryKey: ["plans"] });
+      await qc.invalidateQueries({ queryKey: ["class-schedule"] });
     } finally {
       setBusy(false);
     }
@@ -192,11 +238,18 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
             <div>
               <h2 className="text-lg font-medium">Novo plano</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Crie um plano por modalidade (musculação, lutas, dança…) com o
-                valor mensal correspondente. Na ficha do aluno você associa o
-                plano certo.
+                Crie um plano por modalidade ou carregue a tabela da academia
+                (musculação, família, lutas, CrossFit e taxas) junto com a grade.
               </p>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void loadCatalog()}
+            >
+              Carregar tabela Versátil
+            </Button>
 
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">
@@ -252,10 +305,35 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                   }
                 >
                   <option value="monthly">Mensal</option>
+                  <option value="quarterly">Trimestral</option>
                   <option value="semesterly">Semestral</option>
                   <option value="yearly">Anual</option>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="plan-category">Categoria</Label>
+                <Input
+                  id="plan-category"
+                  placeholder="Ex.: Academia"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="plan-term">Prazo em meses</Label>
+                <Input
+                  id="plan-term"
+                  inputMode="numeric"
+                  placeholder="Vazio = sem término"
+                  value={termMonths}
+                  onChange={(e) => setTermMonths(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                No mensal, o prazo é o número de parcelas. No trimestral,
+                semestral ou anual, o término da assinatura cai um dia antes da
+                próxima cobrança.
+              </p>
               <div className="sm:col-span-2">
                 <Button type="submit" disabled={busy}>
                   Criar plano
@@ -281,7 +359,11 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
           {items.length === 0 ? (
             <li className="text-sm text-muted-foreground">Nenhum plano.</li>
           ) : (
-            items.map((p) => (
+            groupPlansByCategory(items).map(([category, group]) => (
+              <li key={category} className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">{category}</h3>
+                <ul className="space-y-3">
+                  {group.map((p) => (
               <li
                 key={p.id}
                 className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm"
@@ -339,7 +421,14 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                           {money(p.priceCents)}
                         </span>
                         {" · "}
-                        {billingIntervalLabel(p.billingInterval)}
+                        {planChargeLabel(p)}
+                        {p.category ? ` · ${p.category}` : ""}
+                        {p.kind === "fee" ? null : (
+                          <>
+                            {" · "}
+                            {billingIntervalLabel(p.billingInterval)}
+                          </>
+                        )}
                         {" · "}
                         {p.active ? (
                           <span className="text-emerald-700">ativo</span>
@@ -372,6 +461,9 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                     ) : null}
                   </div>
                 )}
+              </li>
+                  ))}
+                </ul>
               </li>
             ))
           )}

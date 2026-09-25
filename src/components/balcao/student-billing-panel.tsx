@@ -13,13 +13,17 @@ import {
   type ManualPaymentMethod,
 } from "@/lib/billing/payment-methods";
 import { formatDateBr, formatDateTimeBr, parseDateBr } from "@/lib/dates/br";
-import {
-  invoiceStatusLabel,
-  timelineEventLabel,
-} from "@/lib/labels";
+import { timelineEventLabel } from "@/lib/labels";
 import { manualPaymentLabel } from "@/lib/billing/payment-methods";
 import { StudentMonthHistory } from "@/components/balcao/student-month-history";
 import { AutoRenewPanel } from "@/components/balcao/auto-renew-panel";
+import {
+  financeLabel,
+  financeSituation,
+  manualSettlementBlockReason,
+  posLabel,
+  posSituation,
+} from "@/lib/billing/invoice-situation";
 
 type Invoice = {
   id: string;
@@ -29,6 +33,10 @@ type Invoice = {
   dueAt: string;
   paidAt: string | null;
   settlementSource: string | null;
+  gatewayChargeStatus?: string | null;
+  externalId?: string | null;
+  gatewayIdempotencyKey?: string | null;
+  lastChargeError?: string | null;
 };
 
 type Timeline = {
@@ -47,12 +55,28 @@ async function fetchBilling(studentId: string) {
   return (await res.json()) as { invoices: Invoice[]; timeline: Timeline[] };
 }
 
+type FeePlan = {
+  id: string;
+  name: string;
+  priceCents: number;
+  active: boolean;
+  kind: string;
+};
+
+async function fetchPlans() {
+  const res = await fetch("/api/plans", { credentials: "include" });
+  if (!res.ok) throw new Error("Falha ao carregar taxas.");
+  const body = (await res.json()) as { items: FeePlan[] };
+  return body.items;
+}
+
 export function StudentBillingPanel({ studentId }: { studentId: string }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["billing", studentId],
     queryFn: () => fetchBilling(studentId),
   });
+  const plansQ = useQuery({ queryKey: ["plans"], queryFn: fetchPlans });
 
   const [amount, setAmount] = useState("");
   const [due, setDue] = useState("");
@@ -98,6 +122,38 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
       setAmount("");
       setDue("");
       setSuccess("Fatura criada com sucesso.");
+      await qc.invalidateQueries({ queryKey: ["billing", studentId] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function chargeFee(fee: FeePlan) {
+    const value = (fee.priceCents / 100).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+    if (!window.confirm(`Lançar ${fee.name} de ${value} em aberto?`)) return;
+    setBusy(true);
+    setErr(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/invoices", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          amountCents: fee.priceCents,
+          dueAt: new Date().toISOString(),
+          note: fee.name,
+        }),
+      });
+      if (!res.ok) {
+        setErr(await readApiError(res, "Não foi possível lançar a taxa."));
+        return;
+      }
+      setSuccess(`${fee.name} lançada em aberto.`);
       await qc.invalidateQueries({ queryKey: ["billing", studentId] });
     } finally {
       setBusy(false);
@@ -165,8 +221,41 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
         <h3 className="text-sm font-medium">Nova fatura avulsa</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Faturas de plano são geradas automaticamente ao associar assinatura ou
-          pelo cron / botão em Cobrança.
+          pelo cron / botão em Cobrança. As taxas abaixo usam o valor da tabela.
         </p>
+        {(() => {
+          const fees = (plansQ.data ?? []).filter(
+            (plan) => plan.kind === "fee" && plan.active,
+          );
+          if (plansQ.isLoading) return null;
+          if (fees.length === 0) {
+            return (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Nenhuma taxa cadastrada. Em Planos, use Carregar tabela Versátil.
+              </p>
+            );
+          }
+          return (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {fees.map((fee) => (
+                <Button
+                  key={fee.id}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void chargeFee(fee)}
+                >
+                  {fee.name} ·{" "}
+                  {(fee.priceCents / 100).toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </Button>
+              ))}
+            </div>
+          );
+        })()}
         <form
           onSubmit={(e) => void createInvoice(e)}
           className="mt-2 flex flex-col gap-2"
@@ -191,33 +280,45 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           {data.invoices.length === 0 ? (
             <li className="text-muted-foreground">Nenhuma fatura.</li>
           ) : (
-            data.invoices.map((inv) => (
+            data.invoices.map((inv) => {
+              const finance = financeSituation(inv.status, inv.dueAt);
+              const pos = posSituation(inv);
+              const block = manualSettlementBlockReason(pos);
+              const posText = posLabel(pos);
+              const canSettle = inv.status === "open" && !block;
+              return (
               <li
                 key={inv.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2"
               >
                 <div>
-                  <span className="font-mono text-xs">{inv.id.slice(0, 8)}…</span>
-                  <span className="ml-2">
+                  <span>
                     {(inv.amountCents / 100).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: inv.currency,
                     })}
                   </span>
-                  <span className="ml-2 text-muted-foreground">
-                    {invoiceStatusLabel(inv.status)}
-                  </span>
+                  <span className="ml-2 font-medium">{financeLabel(finance)}</span>
+                  {posText ? (
+                    <span className="mt-1 block text-xs">{posText}</span>
+                  ) : null}
+                  {pos === "refused" && inv.lastChargeError ? (
+                    <span className="mt-1 block text-xs">{inv.lastChargeError}</span>
+                  ) : null}
                   <div className="text-xs text-muted-foreground">
                     Venc.: {formatDateBr(inv.dueAt)}
                     {inv.paidAt ? ` · Pago: ${formatDateBr(inv.paidAt)}` : ""}
                   </div>
+                  {block ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{block}</p>
+                  ) : null}
                 </div>
                 {inv.status === "open" ? (
                   <Button
                     type="button"
                     size="sm"
                     variant="default"
-                    disabled={busy}
+                    disabled={busy || !canSettle}
                     onClick={() =>
                       void settle(inv.id, inv.amountCents, inv.currency)
                     }
@@ -226,7 +327,8 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                   </Button>
                 ) : null}
               </li>
-            ))
+              );
+            })
           )}
         </ul>
       </div>

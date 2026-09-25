@@ -40,6 +40,7 @@ export const settlementSourceEnum = pgEnum("settlement_source", [
 
 export const billingIntervalEnum = pgEnum("billing_interval", [
   "monthly",
+  "quarterly",
   "semesterly",
   "yearly",
 ]);
@@ -166,6 +167,16 @@ export const plans = pgTable(
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
+    /** Código estável da tabela da academia. A carga não duplica este valor. */
+    code: varchar("code", { length: 64 }),
+    category: varchar("category", { length: 64 }),
+    /** subscription = mensalidade; fee = cobrança única (matrícula, avaliação…). */
+    kind: varchar("kind", { length: 32 }).notNull().default("subscription"),
+    /**
+     * Prazo comercial em meses. No mensal, é o número de parcelas.
+     * No trimestral/semestral/anual, indica pagamento à vista de um ciclo.
+     */
+    termMonths: integer("term_months"),
     priceCents: integer("price_cents").notNull(),
     billingInterval: billingIntervalEnum("billing_interval")
       .notNull()
@@ -175,7 +186,79 @@ export const plans = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("plans_tenant_idx").on(t.tenantId)],
+  (t) => [
+    index("plans_tenant_idx").on(t.tenantId),
+    uniqueIndex("plans_tenant_code")
+      .on(t.tenantId, t.code)
+      .where(sql`${t.code} IS NOT NULL`),
+    check(
+      "plans_kind_check",
+      sql`${t.kind} IN ('subscription', 'fee')`,
+    ),
+    check(
+      "plans_term_months_positive",
+      sql`${t.termMonths} IS NULL OR ${t.termMonths} > 0`,
+    ),
+  ],
+);
+
+export const classActivities = pgTable(
+  "class_activities",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    category: varchar("category", { length: 64 }).notNull(),
+    code: varchar("code", { length: 64 }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("class_activities_tenant_idx").on(t.tenantId),
+    uniqueIndex("class_activities_tenant_code")
+      .on(t.tenantId, t.code)
+      .where(sql`${t.code} IS NOT NULL`),
+  ],
+);
+
+export const classSlots = pgTable(
+  "class_slots",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => classActivities.id, { onDelete: "cascade" }),
+    /** 1 = segunda … 5 = sexta. */
+    weekday: integer("weekday").notNull(),
+    /** Horário local HH:MM. */
+    startTime: varchar("start_time", { length: 5 }).notNull(),
+  },
+  (t) => [
+    index("class_slots_activity_idx").on(t.activityId),
+    index("class_slots_tenant_idx").on(t.tenantId),
+    uniqueIndex("class_slots_activity_weekday_time").on(
+      t.activityId,
+      t.weekday,
+      t.startTime,
+    ),
+    check("class_slots_weekday", sql`${t.weekday} BETWEEN 1 AND 5`),
+    check(
+      "class_slots_start_time",
+      sql`${t.startTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`,
+    ),
+  ],
 );
 
 export const studentSubscriptions = pgTable(

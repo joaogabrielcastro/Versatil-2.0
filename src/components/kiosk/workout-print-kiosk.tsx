@@ -54,12 +54,13 @@ export function WorkoutPrintKiosk({
     async (q: string) => {
       if (!slugReady) return;
       const trimmed = q.trim();
+      const seq = ++searchSeq.current;
       if (trimmed.length < KIOSK_SEARCH_MIN_CHARS) {
         setStudents([]);
+        setLoadingList(false);
+        setError(null);
         return;
       }
-
-      const seq = ++searchSeq.current;
       setLoadingList(true);
       setError(null);
       try {
@@ -238,13 +239,19 @@ export function WorkoutPrintKiosk({
           <span className="font-medium text-lg">Seu nome</span>
           <Input
             className="h-12 text-lg"
-            placeholder="Digite ao menos 2 letras…"
+            placeholder="Nome do aluno"
             value={nameFilter}
             onChange={(e) => {
-              setNameFilter(e.target.value);
+              const value = e.target.value;
+              setNameFilter(value);
               setSelectedId("");
               setWorkout(null);
               setShowPrint(false);
+              if (value.trim().length < KIOSK_SEARCH_MIN_CHARS) {
+                searchSeq.current += 1;
+                setStudents([]);
+                setLoadingList(false);
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -256,15 +263,19 @@ export function WorkoutPrintKiosk({
           />
         </label>
 
-        {loadingList ? (
+        {nameFilter.trim().length < KIOSK_SEARCH_MIN_CHARS ? (
+          <p className="text-sm text-muted-foreground">
+            Digite pelo menos 3 caracteres para buscar
+          </p>
+        ) : loadingList ? (
           <p className="text-sm text-muted-foreground">Buscando…</p>
-        ) : nameFilter.trim().length >= 2 && students.length === 0 ? (
+        ) : students.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum nome correspondente.</p>
-        ) : students.length > 0 ? (
+        ) : (
           <p className="text-xs text-muted-foreground">
             {students.length} correspondente(s) — toque no seu nome
           </p>
-        ) : null}
+        )}
 
         {students.length > 0 ? (
           <ul className="grid gap-2 sm:grid-cols-2">

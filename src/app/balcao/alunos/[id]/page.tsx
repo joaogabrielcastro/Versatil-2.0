@@ -13,6 +13,7 @@ import { formatCpf } from "@/lib/labels";
 import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { effectiveStudentStatusSql } from "@/lib/services/student-effective-status";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,16 @@ export default async function AlunoDetalhePage({
 
   const student = await withTenantTransaction(tenantId, async (tx) => {
     const [row] = await tx
-      .select()
+      .select({
+        id: students.id,
+        fullName: students.fullName,
+        cpf: students.cpf,
+        email: students.email,
+        whatsapp: students.whatsapp,
+        birthDate: students.birthDate,
+        facialVectorRef: students.facialVectorRef,
+        status: effectiveStudentStatusSql(),
+      })
       .from(students)
       .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .limit(1);
@@ -102,7 +112,10 @@ export default async function AlunoDetalhePage({
           Vincule planos ao aluno (mensalidade, pacotes).
         </p>
         <div className="mt-4">
-          <StudentSubscriptionsPanel studentId={student.id} />
+          <StudentSubscriptionsPanel
+            studentId={student.id}
+            isAdmin={session.role === "tenant_admin"}
+          />
         </div>
       </section>
 

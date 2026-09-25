@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Busca nomes no terminal (sem listar a academia inteira).
- * Requer `q` com pelo menos 2 caracteres + token do terminal (ou sessão balcão).
+ * Requer `q` com pelo menos 3 caracteres + token do terminal (ou sessão balcão).
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   if (q.length < KIOSK_SEARCH_MIN_CHARS) {
     return jsonError(
       400,
-      `Digite ao menos ${KIOSK_SEARCH_MIN_CHARS} caracteres do nome para buscar.`,
+      "Digite pelo menos 3 caracteres para buscar",
     );
   }
 

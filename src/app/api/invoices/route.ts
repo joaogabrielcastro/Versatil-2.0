@@ -21,6 +21,7 @@ const createSchema = z.object({
   currency: z.string().length(3).optional(),
   externalId: z.string().max(255).optional(),
   idempotencyKey: z.string().max(255).optional(),
+  note: z.string().trim().min(1).max(500).optional(),
 });
 
 export async function POST(request: Request) {
@@ -80,7 +81,9 @@ export async function POST(request: Request) {
         tenantId,
         invoiceId: inv!.id,
         type: "note",
-        payload: { message: "Fatura criada (manual ou sistema)." },
+        payload: {
+          message: body.note ?? "Fatura criada (manual ou sistema).",
+        },
       });
 
       return inv!;

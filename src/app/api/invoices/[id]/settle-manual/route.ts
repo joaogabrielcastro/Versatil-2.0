@@ -55,7 +55,7 @@ export async function POST(
   if (result.status === "blocked_pending_pos") {
     return jsonError(
       409,
-      "Há cobrança na maquininha em andamento. Concilie ou aguarde o webhook antes da baixa manual.",
+      "Aguardando confirmação da maquininha. Consulte a transação antes de registrar outro pagamento.",
     );
   }
 

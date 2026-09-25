@@ -1,5 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import type { BillingInterval } from "@/lib/billing/interval-labels";
+import {
+  isBillingInterval,
+  type BillingInterval,
+} from "@/lib/billing/interval-labels";
 import {
   billablePeriodsForSubscription,
   periodDueAt,
@@ -139,7 +142,7 @@ export async function generateSubscriptionInvoicesForTenant(
       if (created >= cap) break;
       if (sub.startsAt.getTime() > now.getTime()) continue;
       const interval = sub.billingInterval;
-      if (interval !== "monthly" && interval !== "semesterly" && interval !== "yearly") {
+      if (!isBillingInterval(interval)) {
         reviews.push({
           subscriptionId: sub.id,
           periodKey: `sub:${sub.id}:unknown`,

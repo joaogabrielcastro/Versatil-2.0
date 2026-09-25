@@ -4,6 +4,7 @@ import {
   periodDueAt,
   subscriptionIdempotencyKey,
 } from "@/lib/billing/period";
+import { suggestedSubscriptionEnd } from "@/lib/billing/term-end";
 
 describe("billing period", () => {
   it("gera chave pela data civil de São Paulo", () => {
@@ -60,6 +61,52 @@ describe("billing period", () => {
     expect(periods.map((period) => period.idempotencyKey)).toEqual([
       "sub:sub-abc:2026-01-15",
     ]);
+  });
+
+  it("trimestral avança três meses", () => {
+    const start = new Date("2026-01-15T15:00:00.000Z");
+    expect(periodDueAt(start, "quarterly", 1).toISOString()).toBe(
+      "2026-04-15T15:00:00.000Z",
+    );
+  });
+
+  it("plano mensal de 3 meses gera exatamente três parcelas", () => {
+    const startsAt = new Date("2026-01-15T15:00:00.000Z");
+    const endsAt = suggestedSubscriptionEnd(startsAt, "monthly", 3);
+    expect(endsAt?.toISOString()).toBe("2026-04-14T15:00:00.000Z");
+    const periods = billablePeriodsForSubscription(
+      "sub-term",
+      startsAt,
+      endsAt,
+      "monthly",
+      new Date("2026-12-01T15:00:00.000Z"),
+    );
+    expect(periods.map((period) => period.idempotencyKey)).toEqual([
+      "sub:sub-term:2026-01-15",
+      "sub:sub-term:2026-02-15",
+      "sub:sub-term:2026-03-15",
+    ]);
+  });
+
+  it("trimestral à vista gera uma cobrança e termina um dia antes do próximo ciclo", () => {
+    const startsAt = new Date("2026-01-15T15:00:00.000Z");
+    const endsAt = suggestedSubscriptionEnd(startsAt, "quarterly", 3);
+    expect(endsAt?.toISOString()).toBe("2026-04-14T15:00:00.000Z");
+    const periods = billablePeriodsForSubscription(
+      "sub-upfront",
+      startsAt,
+      endsAt,
+      "quarterly",
+      new Date("2026-12-01T15:00:00.000Z"),
+    );
+    expect(periods.map((period) => period.idempotencyKey)).toEqual([
+      "sub:sub-upfront:2026-01-15",
+    ]);
+  });
+
+  it("plano sem prazo não sugere término", () => {
+    const startsAt = new Date("2026-01-15T15:00:00.000Z");
+    expect(suggestedSubscriptionEnd(startsAt, "monthly", null)).toBeNull();
   });
 
   it("reexecução devolve as mesmas chaves", () => {

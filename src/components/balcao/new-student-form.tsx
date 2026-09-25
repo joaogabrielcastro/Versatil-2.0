@@ -6,6 +6,7 @@ import { FlashMessage } from "@/components/ui/flash-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { readApiError } from "@/lib/api/read-error";
+import { cpfRejectionMessage } from "@/lib/cpf";
 
 type Props = {
   onCreated: () => void;
@@ -17,12 +18,19 @@ export function NewStudentForm({ onCreated }: Props) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cpfError, setCpfError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setCpfError(null);
     setSuccess(null);
+    const cpfMessage = cpfRejectionMessage(cpf);
+    if (cpfMessage) {
+      setCpfError(cpfMessage);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/students", {
@@ -36,7 +44,9 @@ export function NewStudentForm({ onCreated }: Props) {
         }),
       });
       if (!res.ok) {
-        setError(await readApiError(res, "Não foi possível cadastrar o aluno."));
+        const message = await readApiError(res, "Não foi possível cadastrar o aluno.");
+        if (message.startsWith("Informe um CPF")) setCpfError(message);
+        else setError(message);
         return;
       }
       setFullName("");
@@ -75,10 +85,20 @@ export function NewStudentForm({ onCreated }: Props) {
         <Input
           id="new-student-cpf"
           value={cpf}
-          onChange={(e) => setCpf(e.target.value)}
+          onChange={(e) => {
+            setCpf(e.target.value);
+            setCpfError(null);
+          }}
           placeholder="000.000.000-00"
           required
+          aria-invalid={cpfError ? true : undefined}
+          aria-describedby={cpfError ? "new-student-cpf-error" : undefined}
         />
+        {cpfError ? (
+          <p id="new-student-cpf-error" className="text-sm text-red-600">
+            {cpfError}
+          </p>
+        ) : null}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="new-student-email">E-mail (opcional)</Label>

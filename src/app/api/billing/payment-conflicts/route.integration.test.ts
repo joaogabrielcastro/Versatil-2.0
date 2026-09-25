@@ -23,7 +23,7 @@ describe("conciliação visível ao administrador", () => {
     jar.value = undefined;
   });
 
-  it("pagamento após anulação aparece uma vez para o admin e o funcionário recebe 403", async () => {
+  it("pagamento após anulação aparece para o admin e a recepção só vê que há conferência", async () => {
     const { GET } = await import("@/app/api/billing/payment-conflicts/route");
     const suffix = randomUUID().slice(0, 8);
     const created = await createTenantWithAdmin({
@@ -109,7 +109,13 @@ describe("conciliação visível ao administrador", () => {
       secret,
     );
     const staffRes = await GET();
-    expect(staffRes.status).toBe(403);
+    expect(staffRes.status).toBe(200);
+    const staffBody = (await staffRes.json()) as {
+      reviewRequired?: boolean;
+      items?: unknown;
+    };
+    expect(staffBody.reviewRequired).toBe(true);
+    expect(staffBody.items).toBeUndefined();
 
     const rows = await withBypassRlsTransaction(async (tx) => {
       return tx

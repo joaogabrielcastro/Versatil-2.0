@@ -1,5 +1,11 @@
-import { and, eq, lte, or } from "drizzle-orm";
-import { invoices, studentSubscriptions, students } from "@/lib/db/schema";
+import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { dueBeforeToday } from "@/lib/billing/due-day-sql";
+import {
+  invoices,
+  studentSubscriptions,
+  students,
+  subscriptionTerms,
+} from "@/lib/db/schema";
 import {
   withBypassRlsTransaction,
   withTenantTransaction,
@@ -32,7 +38,7 @@ export async function recalculateStudentStatus(
           eq(invoices.tenantId, tenantId),
           eq(invoices.studentId, studentId),
           or(
-            and(eq(invoices.status, "open"), lte(invoices.dueAt, now)),
+            and(eq(invoices.status, "open"), dueBeforeToday(invoices.dueAt, now)),
             eq(invoices.status, "uncollectible"),
           ),
         ),
@@ -63,9 +69,27 @@ export async function recalculateStudentStatus(
         ),
       );
 
-    const hasActivePlan = subs.some((s) =>
-      isSubscriptionActiveAt(s.startsAt, s.endsAt, now),
-    );
+    const renewalCoveringNow = await tx
+      .select({ id: subscriptionTerms.id })
+      .from(subscriptionTerms)
+      .innerJoin(
+        studentSubscriptions,
+        eq(subscriptionTerms.subscriptionId, studentSubscriptions.id),
+      )
+      .where(
+        and(
+          eq(subscriptionTerms.tenantId, tenantId),
+          eq(studentSubscriptions.studentId, studentId),
+          eq(subscriptionTerms.source, "renewal"),
+          lte(subscriptionTerms.startsAt, now),
+          or(isNull(subscriptionTerms.endsAt), gte(subscriptionTerms.endsAt, now)),
+        ),
+      )
+      .limit(1);
+
+    const hasActivePlan =
+      subs.some((s) => isSubscriptionActiveAt(s.startsAt, s.endsAt, now)) ||
+      renewalCoveringNow.length > 0;
 
     const next = computeStudentStatus({
       hasBadInvoice: badInvoices.length > 0,

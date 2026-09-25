@@ -3,6 +3,7 @@ import type { BillingInterval } from "@/lib/billing/interval-labels";
 
 const MONTHS_PER_INTERVAL: Record<BillingInterval, number> = {
   monthly: 1,
+  quarterly: 3,
   semesterly: 6,
   yearly: 12,
 };
@@ -55,6 +56,10 @@ function compareCivil(a: CivilDate, b: CivilDate): number {
 
 export function addMonths(date: Date, months: number): Date {
   return atSaoPauloNoon(addCalendarMonths(civilDate(date), months));
+}
+
+export function addDays(date: Date, days: number): Date {
+  return atSaoPauloNoon(addCalendarDays(civilDate(date), days));
 }
 
 export function periodDueAt(

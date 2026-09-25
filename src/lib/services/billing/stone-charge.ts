@@ -107,9 +107,7 @@ export async function chargeInvoiceOnStone(
           ok: false as const,
           http: 409,
           error:
-            decision.action === "hold_unknown"
-              ? "A Stone não confirmou esta tentativa. Não reenviamos a cobrança. Concilie na maquininha antes de cobrar de novo."
-              : "Cobrança pendente sem chave de idempotência. Concilie manualmente.",
+            "Aguardando confirmação da maquininha. Consulte a transação antes de registrar outro pagamento.",
         },
       };
     }

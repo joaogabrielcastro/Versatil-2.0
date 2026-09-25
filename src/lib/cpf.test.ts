@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cpfsEqual, normalizeCpf, parseCpfInput } from "@/lib/cpf";
+import { cpfsEqual, normalizeCpf, parseCpfInput, cpfRejectionMessage } from "@/lib/cpf";
 
 describe("CPF", () => {
   it("normaliza máscara para dígitos", () => {
@@ -14,5 +14,8 @@ describe("CPF", () => {
 
   it("rejeita CPF incompleto", () => {
     expect(parseCpfInput("123.456")).toBeNull();
+    expect(cpfRejectionMessage("123")).toBe("Informe um CPF com 11 dígitos");
+    expect(cpfRejectionMessage("529.982.247-25")).toBeNull();
+    expect(cpfRejectionMessage(null)).toBe("Informe um CPF válido");
   });
 });

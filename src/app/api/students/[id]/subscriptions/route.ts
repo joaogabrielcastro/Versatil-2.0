@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -6,8 +6,9 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { plans, studentSubscriptions, students, subscriptionTerms } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
+import { isBillingInterval } from "@/lib/billing/interval-labels";
+import { suggestedSubscriptionEnd } from "@/lib/billing/term-end";
 import { createFirstSubscriptionInvoice } from "@/lib/services/billing/subscription-invoice";
-import { recalculateStudentStatus } from "@/lib/services/student-status";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function GET(
       .where(and(eq(students.id, studentId), eq(students.tenantId, tenantId)))
       .limit(1);
     if (!stu) return null;
-    return await tx
+    const rows = await tx
       .select({
         subscription: studentSubscriptions,
         plan: plans,
@@ -47,6 +48,24 @@ export async function GET(
       .innerJoin(plans, eq(studentSubscriptions.planId, plans.id))
       .where(eq(studentSubscriptions.studentId, studentId))
       .orderBy(desc(studentSubscriptions.createdAt));
+    const ids = rows.map((row) => row.subscription.id);
+    const terms =
+      ids.length === 0
+        ? []
+        : await tx
+            .select()
+            .from(subscriptionTerms)
+            .where(
+              and(
+                eq(subscriptionTerms.tenantId, tenantId),
+                inArray(subscriptionTerms.subscriptionId, ids),
+              ),
+            )
+            .orderBy(asc(subscriptionTerms.startsAt));
+    return rows.map((row) => ({
+      ...row,
+      terms: terms.filter((term) => term.subscriptionId === row.subscription.id),
+    }));
   });
 
   if (!items) {
@@ -101,6 +120,8 @@ export async function POST(
           id: plans.id,
           priceCents: plans.priceCents,
           billingInterval: plans.billingInterval,
+          kind: plans.kind,
+          termMonths: plans.termMonths,
         })
         .from(plans)
         .where(and(eq(plans.id, body.planId), eq(plans.tenantId, tenantId)))
@@ -108,6 +129,15 @@ export async function POST(
       if (!pl) {
         throw new Error("no_plan");
       }
+      if (pl.kind === "fee") {
+        throw new Error("fee_plan");
+      }
+      if (!isBillingInterval(pl.billingInterval)) {
+        throw new Error("bad_interval");
+      }
+      const resolvedEnds =
+        endsAt ??
+        suggestedSubscriptionEnd(startsAt, pl.billingInterval, pl.termMonths);
       const [row] = await tx
         .insert(studentSubscriptions)
         .values({
@@ -115,7 +145,7 @@ export async function POST(
           studentId,
           planId: body.planId,
           startsAt,
-          endsAt,
+          endsAt: resolvedEnds,
           active: true,
           priceCents: pl.priceCents,
           billingInterval: pl.billingInterval,
@@ -128,7 +158,7 @@ export async function POST(
         priceCents: pl.priceCents,
         billingInterval: pl.billingInterval,
         startsAt,
-        endsAt,
+        endsAt: resolvedEnds,
         validFrom: startsAt,
         source: "contract",
       });
@@ -159,6 +189,15 @@ export async function POST(
     }
     if (e instanceof Error && e.message === "no_plan") {
       return jsonError(404, "Plano não encontrado.");
+    }
+    if (e instanceof Error && e.message === "fee_plan") {
+      return jsonError(
+        400,
+        "Taxa avulsa não vira assinatura. Lance a cobrança na ficha do aluno.",
+      );
+    }
+    if (e instanceof Error && e.message === "bad_interval") {
+      return jsonError(400, "Intervalo de cobrança do plano é inválido.");
     }
     throw e;
   }

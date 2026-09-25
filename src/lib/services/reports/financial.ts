@@ -1,7 +1,9 @@
 import "server-only";
-import { and, count, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
+import { dueBeforeToday } from "@/lib/billing/due-day-sql";
 import { invoices, students } from "@/lib/db/schema";
 import type { ReportDateRange } from "@/lib/reports/date-range";
+import { countStudentsByEffectiveStatus } from "@/lib/services/student-effective-status";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 
 export type FinancialReport = {
@@ -42,24 +44,10 @@ export async function buildFinancialReport(
   const now = new Date();
 
   return withTenantTransaction(tenantId, async (tx) => {
-    const statusRows = await tx
-      .select({
-        status: students.status,
-        n: count(),
-      })
-      .from(students)
-      .where(eq(students.tenantId, tenantId))
-      .groupBy(students.status);
-
-    let studentsActive = 0;
-    let studentsDelinquent = 0;
-    let studentsInactive = 0;
-    for (const row of statusRows) {
-      const n = Number(row.n);
-      if (row.status === "active") studentsActive = n;
-      else if (row.status === "delinquent") studentsDelinquent = n;
-      else if (row.status === "inactive") studentsInactive = n;
-    }
+    const statusTotals = await countStudentsByEffectiveStatus(tx, tenantId, now);
+    const studentsActive = statusTotals.active;
+    const studentsDelinquent = statusTotals.delinquent;
+    const studentsInactive = statusTotals.inactive;
 
     const paidRows = await tx
       .select({
@@ -110,7 +98,7 @@ export async function buildFinancialReport(
         and(
           eq(invoices.tenantId, tenantId),
           eq(invoices.status, "open"),
-          lte(invoices.dueAt, now),
+          dueBeforeToday(invoices.dueAt, now),
         ),
       )
       .orderBy(invoices.dueAt);

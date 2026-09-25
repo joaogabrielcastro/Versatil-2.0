@@ -18,6 +18,15 @@ import {
 } from "@/lib/billing/payment-methods";
 import { readApiError } from "@/lib/api/read-error";
 import { formatDateBr } from "@/lib/dates/br";
+import {
+  canSendToPos,
+  financeLabel,
+  financeSituation,
+  manualSettlementBlockReason,
+  posLabel,
+  posSituation,
+} from "@/lib/billing/invoice-situation";
+import { invoiceStatusLabel } from "@/lib/labels";
 
 type OpenInvoice = {
   invoiceId: string;
@@ -28,6 +37,10 @@ type OpenInvoice = {
   dueAt: string;
   status: string;
   overdue: boolean;
+  gatewayChargeStatus?: string | null;
+  externalId?: string | null;
+  gatewayIdempotencyKey?: string | null;
+  lastChargeError?: string | null;
 };
 
 async function fetchOpen() {
@@ -49,6 +62,7 @@ type ConflictItem = {
   invoiceStatus: string;
   studentName: string;
   chargeId: string;
+  eventId: string;
   amountCents: number;
   currency: string;
   reason: string;
@@ -61,11 +75,12 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
     queryKey: ["payment-conflicts"],
     queryFn: async () => {
       const res = await fetch("/api/billing/payment-conflicts", { credentials: "include" });
-      if (res.status === 403) return { items: [] as ConflictItem[] };
       if (!res.ok) throw new Error("Falha ao carregar conciliações.");
-      return (await res.json()) as { items: ConflictItem[] };
+      return (await res.json()) as {
+        items?: ConflictItem[];
+        reviewRequired?: boolean;
+      };
     },
-    enabled: isAdmin,
   });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState(false);
@@ -157,35 +172,46 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
           setMsg(null);
         }}
       />
-      {isAdmin && (conflicts.data?.items.length ?? 0) > 0 ? (
+      {isAdmin && (conflicts.data?.items?.length ?? 0) > 0 ? (
         <Card>
           <CardContent className="space-y-2 py-4 text-sm">
             <h2 className="font-medium">Conciliação pendente</h2>
             <p className="text-xs text-muted-foreground">
               Somente consulta. Esta tela não quita, estorna nem reativa a assinatura.
-              O pagamento ficou identificado na fatura anulada.
             </p>
             <ul className="space-y-2">
-              {conflicts.data?.items.map((item) => (
+              {conflicts.data?.items?.map((item) => (
                 <li key={item.id} className="rounded-md border border-border p-2">
-                  <div>{item.studentName}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Fatura {item.invoiceId} · estado {item.invoiceStatus} · pendência aberta
-                  </div>
+                  <div className="font-medium">{item.studentName}</div>
                   <div>
-                    Cobrança {item.chargeId} ·{" "}
                     {(item.amountCents / 100).toLocaleString("pt-BR", {
                       style: "currency",
-                      currency: item.currency,
-                    })}{" "}
-                    ({item.currency})
+                      currency: "BRL",
+                    })}
+                  </div>
+                  <div>
+                    {item.invoiceStatus === "void"
+                      ? "Fatura anulada"
+                      : invoiceStatusLabel(item.invoiceStatus)}
+                    . Pendência aberta.
                   </div>
                   <div className="text-xs">{item.reason}</div>
+                  <details className="mt-1 text-xs text-muted-foreground">
+                    <summary>Detalhes para suporte</summary>
+                    <div>Fatura {item.invoiceId}</div>
+                    <div>Cobrança {item.chargeId}</div>
+                    <div>Evento {item.eventId}</div>
+                  </details>
                 </li>
               ))}
             </ul>
           </CardContent>
         </Card>
+      ) : null}
+      {!isAdmin && conflicts.data?.reviewRequired ? (
+        <p className="text-sm">
+          Pagamento precisa de conferência pelo administrador.
+        </p>
       ) : null}
       <Card>
         <CardContent className="pt-5 text-sm text-muted-foreground">
@@ -237,10 +263,15 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
         />
       ) : (
         <ul className="space-y-3">
-          {items.map((inv) => (
+          {items.map((inv) => {
+            const finance = financeSituation(inv.status, inv.dueAt);
+            const pos = posSituation(inv);
+            const block = manualSettlementBlockReason(pos);
+            const posText = posLabel(pos);
+            return (
             <li
               key={inv.invoiceId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm transition-shadow hover:shadow-md"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm"
             >
               <div>
                 <Link
@@ -252,8 +283,14 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 <div className="text-muted-foreground">
                   {money(inv.amountCents, inv.currency)} · Venc.{" "}
                   {formatDateBr(inv.dueAt)}
-                  {inv.overdue ? (
-                    <span className="ml-2 font-medium text-red-700">vencida</span>
+                  <span className="ml-2 font-medium text-foreground">
+                    {financeLabel(finance)}
+                  </span>
+                  {posText ? (
+                    <span className="mt-1 block text-xs">{posText}</span>
+                  ) : null}
+                  {pos === "refused" && inv.lastChargeError ? (
+                    <span className="mt-1 block text-xs">{inv.lastChargeError}</span>
                   ) : null}
                 </div>
               </div>
@@ -267,6 +304,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                       [inv.invoiceId]: e.target.value as ManualPaymentMethod,
                     }))
                   }
+                  disabled={Boolean(block)}
                 >
                   {MANUAL_PAYMENT_METHODS.map((m) => (
                     <option key={m} value={m}>
@@ -277,15 +315,26 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={busyId === inv.invoiceId}
+                  disabled={busyId === inv.invoiceId || Boolean(block)}
                   onClick={() => void settle(inv)}
                 >
                   Registrar pagamento
                 </Button>
-                <StoneChargeButton invoiceId={inv.invoiceId} />
+                {block ? (
+                  <p className="w-full text-xs text-muted-foreground">{block}</p>
+                ) : null}
+                <StoneChargeButton
+                  invoiceId={inv.invoiceId}
+                  disabledReason={
+                    canSendToPos(pos, finance)
+                      ? null
+                      : block ?? "Esta fatura não pode ser enviada de novo agora."
+                  }
+                />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

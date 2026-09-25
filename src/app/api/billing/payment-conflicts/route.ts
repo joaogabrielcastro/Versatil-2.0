@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -13,7 +13,13 @@ export async function GET() {
     return jsonError(401, "Não autenticado.");
   }
   if (session.role !== "tenant_admin") {
-    return jsonError(403, "Apenas administrador da academia.");
+    const [{ total }] = await withTenantTransaction(session.tid, async (tx) => {
+      return tx
+        .select({ total: count() })
+        .from(paymentConflicts)
+        .where(eq(paymentConflicts.tenantId, session.tid!));
+    });
+    return NextResponse.json({ reviewRequired: total > 0 });
   }
   const items = await withTenantTransaction(session.tid, async (tx) => {
     return tx
@@ -36,5 +42,5 @@ export async function GET() {
       .orderBy(desc(paymentConflicts.createdAt))
       .limit(50);
   });
-  return NextResponse.json({ items });
+  return NextResponse.json({ items, reviewRequired: items.length > 0 });
 }

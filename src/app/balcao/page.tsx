@@ -9,7 +9,9 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { and, count, eq, gte, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, sql } from "drizzle-orm";
+import { dueBeforeToday } from "@/lib/billing/due-day-sql";
+import { countStudentsByEffectiveStatus } from "@/lib/services/student-effective-status";
 import { AccessFeed } from "@/components/balcao/access-feed";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -65,16 +67,9 @@ export default async function BalcaoDashboardPage() {
       .select({ n: count() })
       .from(students)
       .where(eq(students.tenantId, tenantId));
-    const [active] = await tx
-      .select({ n: count() })
-      .from(students)
-      .where(and(eq(students.tenantId, tenantId), eq(students.status, "active")));
-    const [delinquent] = await tx
-      .select({ n: count() })
-      .from(students)
-      .where(
-        and(eq(students.tenantId, tenantId), eq(students.status, "delinquent")),
-      );
+    const statusTotals = await countStudentsByEffectiveStatus(tx, tenantId, now);
+    const active = { n: statusTotals.active };
+    const delinquent = { n: statusTotals.delinquent };
     const [visits] = await tx
       .select({ n: count() })
       .from(accessEvents)
@@ -95,7 +90,7 @@ export default async function BalcaoDashboardPage() {
         and(
           eq(invoices.tenantId, tenantId),
           eq(invoices.status, "open"),
-          lte(invoices.dueAt, now),
+          dueBeforeToday(invoices.dueAt, now),
         ),
       );
     const [paidMonth] = await tx

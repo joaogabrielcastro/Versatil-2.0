@@ -134,6 +134,20 @@
       "when": 1778609000000,
       "tag": "0018_platform_role_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778610000000,
+      "tag": "0019_billing_interval_quarterly",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778611000000,
+      "tag": "0020_class_schedule_and_plan_catalog",
+      "breakpoints": true
     }
   ]
 }

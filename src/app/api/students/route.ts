@@ -1,19 +1,19 @@
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
+import { cpfRejectionMessage, parseCpfInput } from "@/lib/cpf";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
-import { parseCpfInput } from "@/lib/cpf";
+import { listStudentsPage } from "@/lib/services/student-effective-status";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 
 export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
   fullName: z.string().min(2).max(255),
-  cpf: z.string().min(11).max(18),
+  cpf: z.string().max(32),
   email: z.union([z.string().email(), z.literal("")]).optional(),
   whatsapp: z.string().max(32).optional().nullable(),
   birthDate: z.string().optional().nullable(),
@@ -30,6 +30,13 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
+  const statusParam = searchParams.get("status")?.trim() ?? "";
+  const statusFilter =
+    statusParam === "active" ||
+    statusParam === "delinquent" ||
+    statusParam === "inactive"
+      ? statusParam
+      : null;
 
   const limit = Math.min(
     100,
@@ -37,42 +44,14 @@ export async function GET(request: Request) {
   );
   const offset = Math.max(0, Number(searchParams.get("offset") ?? 0) || 0);
 
-  const rows = await withTenantTransaction(tenantId, async (tx) => {
-    const pattern = q ? `%${q}%` : null;
-    const whereExpr =
-      pattern !== null
-        ? and(
-            eq(students.tenantId, tenantId),
-            or(
-              ilike(students.fullName, pattern),
-              ilike(students.cpf, pattern),
-              ilike(students.email, pattern),
-            ),
-          )
-        : eq(students.tenantId, tenantId);
-
-    const [items, [{ total }]] = await Promise.all([
-      tx
-        .select({
-          id: students.id,
-          fullName: students.fullName,
-          cpf: students.cpf,
-          email: students.email,
-          whatsapp: students.whatsapp,
-          birthDate: students.birthDate,
-          status: students.status,
-          createdAt: students.createdAt,
-        })
-        .from(students)
-        .where(whereExpr!)
-        .orderBy(desc(students.createdAt))
-        .limit(limit)
-        .offset(offset),
-      tx.select({ total: count() }).from(students).where(whereExpr!),
-    ]);
-
-    return { items, total: Number(total ?? 0) };
-  });
+  const rows = await withTenantTransaction(tenantId, (tx) =>
+    listStudentsPage(tx, tenantId, {
+      q,
+      status: statusFilter,
+      limit,
+      offset,
+    }),
+  );
 
   return NextResponse.json({
     items: rows.items,
@@ -108,10 +87,11 @@ export async function POST(request: Request) {
   const email =
     body.email && body.email.length > 0 ? body.email : null;
 
-  const cpf = parseCpfInput(body.cpf);
-  if (!cpf) {
-    return jsonError(400, "CPF inválido. Informe 11 dígitos.");
+  const cpfMessage = cpfRejectionMessage(body.cpf);
+  if (cpfMessage) {
+    return jsonError(400, cpfMessage);
   }
+  const cpf = parseCpfInput(body.cpf)!;
 
   try {
     const [created] = await withTenantTransaction(tenantId, async (tx) => {

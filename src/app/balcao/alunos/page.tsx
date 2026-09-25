@@ -24,12 +24,13 @@ type StudentRow = {
   status: string;
 };
 
-async function fetchStudents(q: string, offset: number) {
+async function fetchStudents(q: string, offset: number, status: string) {
   const params = new URLSearchParams({
     limit: String(PAGE_SIZE),
     offset: String(offset),
   });
   if (q.trim()) params.set("q", q.trim());
+  if (status) params.set("status", status);
   const res = await fetch(`/api/students?${params.toString()}`, {
     credentials: "include",
   });
@@ -46,16 +47,17 @@ async function fetchStudents(q: string, offset: number) {
 
 export default function AlunosPage() {
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [offset, setOffset] = useState(0);
   const debounced = useDebouncedValue(q, 300);
 
   useEffect(() => {
     setOffset(0);
-  }, [debounced]);
+  }, [debounced, status]);
 
   const query = useQuery({
-    queryKey: ["students", debounced, offset],
-    queryFn: () => fetchStudents(debounced, offset),
+    queryKey: ["students", debounced, status, offset],
+    queryFn: () => fetchStudents(debounced, offset, status),
   });
 
   const items = query.data?.items ?? [];
@@ -87,6 +89,26 @@ export default function AlunosPage() {
           aria-label="Buscar aluno"
         />
       </div>
+      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filtrar por situação">
+        {(
+          [
+            ["", "Todos"],
+            ["active", "Ativo"],
+            ["delinquent", "Inadimplente"],
+            ["inactive", "Inativo"],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={label}
+            type="button"
+            size="sm"
+            variant={status === value ? "default" : "outline"}
+            onClick={() => setStatus(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
 
       <section className="mt-8 grid gap-8 lg:grid-cols-2">
         <div>
@@ -98,8 +120,41 @@ export default function AlunosPage() {
               </p>
             ) : null}
           </div>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table className="w-full min-w-[520px] text-left text-sm">
+          <div className="mt-2 space-y-2 sm:hidden">
+            {query.isLoading ? (
+              <TableSkeleton rows={4} cols={1} />
+            ) : query.isError ? (
+              <p className="text-sm text-red-600">{(query.error as Error).message}</p>
+            ) : items.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Nenhum aluno encontrado"
+                description={
+                  debounced || status
+                    ? "Tente outro termo ou filtro."
+                    : "Cadastre o primeiro aluno ao lado."
+                }
+              />
+            ) : (
+              items.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/balcao/alunos/${r.id}`}
+                  className="block rounded-lg border border-border bg-card p-3"
+                >
+                  <span className="block font-medium break-words">{r.fullName}</span>
+                  <span className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {formatCpf(r.cpf)}
+                    </span>
+                    <StudentStatusBadge status={r.status} />
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+          <div className="mt-2 hidden overflow-x-auto rounded-lg border border-border bg-card shadow-sm sm:block">
+            <table className="w-full text-left text-sm">
               <thead className="bg-muted/60">
                 <tr>
                   <th className="px-3 py-2.5 font-medium">Nome</th>
