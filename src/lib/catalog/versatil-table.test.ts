@@ -34,12 +34,27 @@ describe("tabela Versátil", () => {
     expect(price("taxa-aula-avulsa-crossfit")).toBe(4000);
   });
 
-  it("não oferece CrossFit 3x à vista", () => {
+    it("soma as parcelas do cartaz sem tratar isso como parcelamento de cartão", () => {
+      const plan = (code: string) => VERSATIL_PLANS.find((item) => item.code === code)!;
+      expect(plan("academia-trimestral").priceCents * 3).toBe(40200);
+      expect(plan("academia-semestral").priceCents * 6).toBe(77400);
+      expect(plan("academia-anual").priceCents * 12).toBe(148800);
+      expect(plan("crossfit-3x-trimestral").priceCents * 3).toBe(58500);
+      expect(plan("crossfit-livre-trimestral").priceCents * 3).toBe(63000);
+      expect(plan("crossfit-3x-semestral").priceCents * 6).toBe(111000);
+      expect(plan("crossfit-livre-semestral").priceCents * 6).toBe(117000);
+      expect(plan("crossfit-3x-anual").priceCents * 12).toBe(216000);
+      expect(plan("crossfit-livre-anual").priceCents * 12).toBe(216000);
+      expect(plan("academia-mensal-recorrente").name).not.toMatch(/automática|cartão/i);
+    });
+
+  it("não oferece CrossFit 3x à vista nem inventa grade de CrossFit", () => {
     const upfront3x = VERSATIL_PLANS.filter(
       (plan) =>
         plan.category === "CrossFit 3x" && plan.billingInterval !== "monthly",
     );
     expect(upfront3x).toEqual([]);
+    expect(VERSATIL_ACTIVITIES.some((item) => /crossfit/i.test(item.name))).toBe(false);
   });
 
   it("monta a grade do cartaz", () => {

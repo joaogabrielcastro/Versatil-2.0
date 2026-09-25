@@ -388,6 +388,8 @@ export const invoices = pgTable(
     settlementSource: settlementSourceEnum("settlement_source"),
     externalId: varchar("external_id", { length: 255 }),
     idempotencyKey: varchar("idempotency_key", { length: 255 }),
+    /** subscription = mensalidade; fee = taxa avulsa; manual = valor livre. */
+    purpose: varchar("purpose", { length: 32 }),
     /** Recorrência automática: nº de tentativas de cobrança e backoff. */
     chargeAttempts: integer("charge_attempts").notNull().default(0),
     nextChargeAttemptAt: timestamp("next_charge_attempt_at", {
@@ -411,6 +413,10 @@ export const invoices = pgTable(
     uniqueIndex("invoices_tenant_idempotency").on(
       t.tenantId,
       t.idempotencyKey,
+    ),
+    check(
+      "invoices_purpose_check",
+      sql`${t.purpose} IS NULL OR ${t.purpose} IN ('subscription', 'fee', 'manual')`,
     ),
   ],
 );

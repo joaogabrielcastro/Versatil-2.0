@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrDateInput } from "@/components/ui/br-date-input";
 import { FlashMessage } from "@/components/ui/flash-message";
@@ -26,6 +26,7 @@ type Plan = {
   category: string | null;
   kind: string;
   termMonths: number | null;
+  code?: string | null;
 };
 
 type Term = {
@@ -124,6 +125,7 @@ export function StudentSubscriptionsPanel({
   const [reason, setReason] = useState("");
   const [renewEnd, setRenewEnd] = useState("");
   const [changePlanId, setChangePlanId] = useState("");
+  const suggestedEndRef = useRef<Date | null>(null);
 
   async function createSub(e: React.FormEvent) {
     e.preventDefault();
@@ -136,7 +138,12 @@ export function StudentSubscriptionsPanel({
     }
     let end: Date | null = null;
     if (endsAt.trim()) {
-      end = parseDateBr(endsAt);
+      const suggested = suggestedEndRef.current;
+      if (suggested && formatDateTimeInputBr(suggested) === endsAt.trim()) {
+        end = suggested;
+      } else {
+        end = parseDateBr(endsAt);
+      }
       if (!end) {
         setDateError("Término inválido. Use dd/mm/aaaa HH:mm.");
         return;
@@ -166,6 +173,7 @@ export function StudentSubscriptionsPanel({
       setEndsAt("");
       setSuccess("Plano associado ao aluno.");
       await qc.invalidateQueries({ queryKey: ["subscriptions", studentId] });
+      await qc.invalidateQueries({ queryKey: ["billing", studentId] });
     } finally {
       setBusy(false);
     }
@@ -192,12 +200,17 @@ export function StudentSubscriptionsPanel({
     const plan = plans.find((item) => item.id === nextPlanId);
     if (!plan || !isBillingInterval(plan.billingInterval)) return;
     if (!nextStart.trim()) {
+      suggestedEndRef.current = null;
       setEndsAt("");
       return;
     }
     const start = parseDateBr(nextStart);
-    if (!start) return;
+    if (!start) {
+      suggestedEndRef.current = null;
+      return;
+    }
     const end = suggestedSubscriptionEnd(start, plan.billingInterval, plan.termMonths);
+    suggestedEndRef.current = end;
     setEndsAt(end ? formatDateTimeInputBr(end) : "");
   }
 
@@ -234,7 +247,7 @@ export function StudentSubscriptionsPanel({
               <optgroup key={category} label={category}>
                 {group.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} — {money(p.priceCents)} ({planChargeLabel(p)})
+                    {p.name} — {planChargeLabel(p)}
                   </option>
                 ))}
               </optgroup>
@@ -258,7 +271,8 @@ export function StudentSubscriptionsPanel({
             <BrDateInput withTime className="mt-1" value={endsAt} onChange={setEndsAt} />
             {planId && plans.find((plan) => plan.id === planId)?.termMonths ? (
               <span className="mt-1 block">
-                Preenchido pelo prazo do plano. Ajuste se o contrato for diferente.
+                O término é o fim do último dia coberto. O acesso vale esse dia
+                inteiro e a cobrança seguinte fica de fora.
               </span>
             ) : null}
           </label>
@@ -328,11 +342,7 @@ export function StudentSubscriptionsPanel({
                 (phase === "vigente" || phase === "agendado") && !s.cancelRequestedAt;
               const canChange = phase === "vigente" && !s.cancelRequestedAt;
               const canRenew = !s.cancelRequestedAt && Boolean(s.endsAt);
-              const futureRenewals = (terms ?? []).filter(
-                (term) =>
-                  term.source === "renewal" &&
-                  new Date(term.startsAt).getTime() > Date.now(),
-              );
+              const renewals = (terms ?? []).filter((term) => term.source === "renewal");
               return (
                 <li key={s.id} className="rounded-md border border-border p-2">
                   <div className="font-medium">{plan.name}</div>
@@ -369,15 +379,21 @@ export function StudentSubscriptionsPanel({
                       ), a partir de {formatDateTimeBr(s.scheduledEffectiveAt)}.
                     </div>
                   ) : null}
-                  {futureRenewals.map((term) => (
+                  {renewals.map((term) => {
+                    const started = new Date(term.startsAt).getTime() <= Date.now();
+                    return (
                     <div key={term.id} className="mt-1 text-xs">
-                      Renovação futura, separada do contrato vigente:{" "}
+                      {started ? "Renovação em vigor" : "Renovação futura, separada do contrato vigente"}:{" "}
                       {money(term.priceCents)} (
                       {billingIntervalLabel(term.billingInterval)}) de{" "}
                       {formatDateTimeBr(term.startsAt)}
                       {term.endsAt ? ` até ${formatDateTimeBr(term.endsAt)}` : ""}.
+                      {" "}
+                      O contrato anterior permanece com as condições já gravadas. A cobrança
+                      desta renovação usa o preço e o intervalo deste termo.
                     </div>
-                  ))}
+                    );
+                  })}
                   {s.cancelRequestedAt ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Contrato cancelado não pode ser renovado.

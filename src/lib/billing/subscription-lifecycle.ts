@@ -1,5 +1,5 @@
 import type { BillingInterval } from "@/lib/billing/interval-labels";
-import { periodDueAt } from "@/lib/billing/period";
+import { endOfPreviousCivilDay, periodDueAt } from "@/lib/billing/period";
 import { toIsoDateInTz } from "@/lib/dates/br";
 
 export type PaidPeriod = {
@@ -11,9 +11,14 @@ function day(date: Date): string {
   return toIsoDateInTz(date);
 }
 
-/** Fim exclusivo do período coberto por uma fatura paga (início do ciclo seguinte). */
+/** Início do ciclo seguinte. O dia civil desse instante não faz parte da cobertura. */
 export function coverageEnd(period: PaidPeriod): Date {
   return periodDueAt(period.dueAt, period.interval, 1);
+}
+
+/** Último instante do último dia coberto. O acesso inclui esse dia inteiro. */
+export function coverageInclusiveEnd(period: PaidPeriod): Date {
+  return endOfPreviousCivilDay(coverageEnd(period));
 }
 
 /**
@@ -27,7 +32,7 @@ export function paidPeriodEnd(now: Date, paid: PaidPeriod[]): Date | null {
     const start = day(period.dueAt);
     const next = day(coverageEnd(period));
     if (today >= start && today < next) {
-      const boundary = coverageEnd(period);
+      const boundary = coverageInclusiveEnd(period);
       if (!end || boundary.getTime() > end.getTime()) end = boundary;
     }
   }

@@ -1,21 +1,21 @@
-import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { dueBeforeToday } from "@/lib/billing/due-day-sql";
+import {
+  recordRenewalBillingGap,
+  renewalCoverageForStudent,
+} from "@/lib/billing/renewal-access";
+import { decideCoverage } from "@/lib/billing/renewal-billing";
 import {
   invoices,
   studentSubscriptions,
   students,
-  subscriptionTerms,
 } from "@/lib/db/schema";
 import {
   withBypassRlsTransaction,
   withTenantTransaction,
 } from "@/lib/db/with-tenant";
 import { log } from "@/lib/observability/logger";
-import {
-  computeStudentStatus,
-  isSubscriptionActiveAt,
-  type StudentComputedStatus,
-} from "@/lib/services/student-status-logic";
+import { isSubscriptionActiveAt, type StudentComputedStatus } from "@/lib/services/student-status-logic";
 
 export type { StudentComputedStatus };
 
@@ -69,32 +69,17 @@ export async function recalculateStudentStatus(
         ),
       );
 
-    const renewalCoveringNow = await tx
-      .select({ id: subscriptionTerms.id })
-      .from(subscriptionTerms)
-      .innerJoin(
-        studentSubscriptions,
-        eq(subscriptionTerms.subscriptionId, studentSubscriptions.id),
-      )
-      .where(
-        and(
-          eq(subscriptionTerms.tenantId, tenantId),
-          eq(studentSubscriptions.studentId, studentId),
-          eq(subscriptionTerms.source, "renewal"),
-          lte(subscriptionTerms.startsAt, now),
-          or(isNull(subscriptionTerms.endsAt), gte(subscriptionTerms.endsAt, now)),
-        ),
-      )
-      .limit(1);
-
-    const hasActivePlan =
-      subs.some((s) => isSubscriptionActiveAt(s.startsAt, s.endsAt, now)) ||
-      renewalCoveringNow.length > 0;
-
-    const next = computeStudentStatus({
+    const renewal = await renewalCoverageForStudent(tx, tenantId, studentId, now);
+    if (renewal.review) await recordRenewalBillingGap(tx, tenantId, renewal.review);
+    const originalActive = subs.some((s) =>
+      isSubscriptionActiveAt(s.startsAt, s.endsAt, now),
+    );
+    const next = decideCoverage({
       hasBadInvoice: badInvoices.length > 0,
-      hasActivePlan,
-    });
+      originalActive,
+      renewalCoversNow: renewal.coversNow,
+      renewalChargeMissing: renewal.chargeMissing,
+    }).status;
     await tx
       .update(students)
       .set({ status: next, updatedAt: now })

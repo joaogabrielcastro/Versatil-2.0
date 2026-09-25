@@ -34,15 +34,70 @@ export function effectiveStudentStatusSql(now = new Date()): SQL<StudentComputed
           AND sub.active = true
           AND sub.starts_at <= ${instant}::timestamptz
           AND (sub.ends_at IS NULL OR sub.ends_at >= ${instant}::timestamptz)
-      ) OR EXISTS (
-        SELECT 1 FROM subscription_terms AS term
-        INNER JOIN student_subscriptions AS renewed
-          ON term.subscription_id = renewed.id
-        WHERE term.tenant_id = students.tenant_id
-          AND renewed.student_id = students.id
-          AND term.source = 'renewal'
-          AND term.starts_at <= ${instant}::timestamptz
-          AND (term.ends_at IS NULL OR term.ends_at >= ${instant}::timestamptz)
+      ) OR (
+        EXISTS (
+          SELECT 1 FROM subscription_terms AS term
+          INNER JOIN student_subscriptions AS renewed
+            ON term.subscription_id = renewed.id
+          WHERE term.tenant_id = students.tenant_id
+            AND renewed.student_id = students.id
+            AND renewed.active = true
+            AND renewed.cancel_requested_at IS NULL
+            AND term.source = 'renewal'
+            AND term.starts_at <= ${instant}::timestamptz
+            AND (term.ends_at IS NULL OR term.ends_at >= ${instant}::timestamptz)
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM subscription_terms AS term
+          INNER JOIN student_subscriptions AS renewed
+            ON term.subscription_id = renewed.id
+          CROSS JOIN LATERAL (
+            SELECT (
+              (term.starts_at AT TIME ZONE 'America/Sao_Paulo')::date
+              + make_interval(months => g.i * (
+                CASE term.billing_interval
+                  WHEN 'monthly' THEN 1
+                  WHEN 'quarterly' THEN 3
+                  WHEN 'semesterly' THEN 6
+                  WHEN 'yearly' THEN 12
+                  ELSE NULL
+                END
+              ))
+            )::date AS due_day
+            FROM generate_series(
+              0,
+              CASE WHEN term.billing_interval = 'monthly' THEN 240 ELSE 0 END
+            ) AS g(i)
+          ) AS period
+          WHERE term.tenant_id = students.tenant_id
+            AND renewed.student_id = students.id
+            AND renewed.active = true
+            AND renewed.cancel_requested_at IS NULL
+            AND term.source = 'renewal'
+            AND term.starts_at <= ${instant}::timestamptz
+            AND (term.ends_at IS NULL OR term.ends_at >= ${instant}::timestamptz)
+            AND (
+              term.price_cents IS NULL
+              OR term.billing_interval NOT IN ('monthly', 'quarterly', 'semesterly', 'yearly')
+              OR (
+                period.due_day IS NOT NULL
+                AND period.due_day <= ${today}::date
+                AND (
+                  term.ends_at IS NULL
+                  OR period.due_day <= (term.ends_at AT TIME ZONE 'America/Sao_Paulo')::date
+                )
+                AND NOT EXISTS (
+                  SELECT 1 FROM invoices AS inv
+                  WHERE inv.tenant_id = students.tenant_id
+                    AND inv.student_id = students.id
+                    AND inv.status <> 'void'
+                    AND inv.idempotency_key =
+                      'sub:' || renewed.id::text || ':' || to_char(period.due_day, 'YYYY-MM-DD')
+                )
+              )
+            )
+        )
       ) THEN 'active'
       ELSE 'inactive'
     END

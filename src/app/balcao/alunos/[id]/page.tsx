@@ -14,6 +14,7 @@ import { getSession } from "@/lib/auth/session";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { effectiveStudentStatusSql } from "@/lib/services/student-effective-status";
+import { recordRenewalBillingGap, renewalCoverageForStudent } from "@/lib/billing/renewal-access";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,13 @@ export default async function AlunoDetalhePage({
       .from(students)
       .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .limit(1);
-    return row ?? null;
+    if (!row) return null;
+    const renewal = await renewalCoverageForStudent(tx, tenantId, id);
+    if (renewal.review) await recordRenewalBillingGap(tx, tenantId, renewal.review);
+    return {
+      ...row,
+      renewalChargeMissing: renewal.coversNow && renewal.chargeMissing && row.status !== "delinquent",
+    };
   });
 
   if (!student) {
@@ -61,6 +68,13 @@ export default async function AlunoDetalhePage({
       >
         <StudentStatusBadge status={student.status} />
       </PageHeader>
+      {student.renewalChargeMissing ? (
+        <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          A renovação já começou, mas a cobrança deste período não foi gerada.
+          Isso não é inadimplência. Em Cobrança, use Gerar faturas do período.
+          A catraca permanece fechada até essa cobrança existir.
+        </p>
+      ) : null}
 
       <StudentDetailNav />
 

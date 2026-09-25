@@ -20,8 +20,9 @@ const createSchema = z.object({
   dueAt: z.string().min(1),
   currency: z.string().length(3).optional(),
   externalId: z.string().max(255).optional(),
-  idempotencyKey: z.string().max(255).optional(),
+  idempotencyKey: z.string().trim().min(8).max(255).optional(),
   note: z.string().trim().min(1).max(500).optional(),
+  purpose: z.enum(["subscription", "fee", "manual"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const invoice = await withTenantTransaction(tenantId, async (tx) => {
+    const result = await withTenantTransaction(tenantId, async (tx) => {
       const [stu] = await tx
         .select({ id: students.id })
         .from(students)
@@ -56,7 +57,29 @@ export async function POST(request: Request) {
         throw new Error("student_not_found");
       }
 
-      const [inv] = await tx
+      if (body.idempotencyKey) {
+        const [existing] = await tx
+          .select({
+            id: invoices.id,
+            studentId: invoices.studentId,
+            amountCents: invoices.amountCents,
+            currency: invoices.currency,
+            status: invoices.status,
+            dueAt: invoices.dueAt,
+            purpose: invoices.purpose,
+          })
+          .from(invoices)
+          .where(
+            and(
+              eq(invoices.tenantId, tenantId),
+              eq(invoices.idempotencyKey, body.idempotencyKey),
+            ),
+          )
+          .limit(1);
+        if (existing) return { invoice: existing, repeated: true };
+      }
+
+      const inserted = await tx
         .insert(invoices)
         .values({
           tenantId,
@@ -67,6 +90,10 @@ export async function POST(request: Request) {
           dueAt,
           externalId: body.externalId ?? null,
           idempotencyKey: body.idempotencyKey ?? null,
+          purpose: body.purpose ?? "manual",
+        })
+        .onConflictDoNothing({
+          target: [invoices.tenantId, invoices.idempotencyKey],
         })
         .returning({
           id: invoices.id,
@@ -75,32 +102,67 @@ export async function POST(request: Request) {
           currency: invoices.currency,
           status: invoices.status,
           dueAt: invoices.dueAt,
+          purpose: invoices.purpose,
         });
+
+      const inv = inserted[0];
+      if (!inv) {
+        if (!body.idempotencyKey) throw new Error("duplicate");
+        const [race] = await tx
+          .select({
+            id: invoices.id,
+            studentId: invoices.studentId,
+            amountCents: invoices.amountCents,
+            currency: invoices.currency,
+            status: invoices.status,
+            dueAt: invoices.dueAt,
+            purpose: invoices.purpose,
+          })
+          .from(invoices)
+          .where(
+            and(
+              eq(invoices.tenantId, tenantId),
+              eq(invoices.idempotencyKey, body.idempotencyKey),
+            ),
+          )
+          .limit(1);
+        if (!race) throw new Error("duplicate");
+        return { invoice: race, repeated: true };
+      }
 
       await tx.insert(invoiceTimelineEvents).values({
         tenantId,
-        invoiceId: inv!.id,
+        invoiceId: inv.id,
         type: "note",
         payload: {
           message: body.note ?? "Fatura criada (manual ou sistema).",
         },
       });
 
-      return inv!;
+      return { invoice: inv, repeated: false };
     });
 
     await recalculateStudentStatus(tenantId, body.studentId);
 
-    await logAudit({
-      tenantId,
-      actorUserId: session.sub,
-      action: "invoice.created",
-      entity: "invoice",
-      entityId: invoice.id,
-      payload: { studentId: body.studentId, amountCents: body.amountCents },
-    });
+    if (!result.repeated) {
+      await logAudit({
+        tenantId,
+        actorUserId: session.sub,
+        action: "invoice.created",
+        entity: "invoice",
+        entityId: result.invoice.id,
+        payload: {
+          studentId: body.studentId,
+          amountCents: body.amountCents,
+          purpose: body.purpose ?? "manual",
+        },
+      });
+    }
 
-    return NextResponse.json({ invoice }, { status: 201 });
+    return NextResponse.json(
+      { invoice: result.invoice, repeated: result.repeated },
+      { status: result.repeated ? 200 : 201 },
+    );
   } catch (e) {
     if (e instanceof Error && e.message === "student_not_found") {
       return jsonError(404, "Aluno não encontrado.");

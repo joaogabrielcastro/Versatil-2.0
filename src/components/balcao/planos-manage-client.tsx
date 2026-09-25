@@ -27,6 +27,7 @@ type Plan = {
   category: string | null;
   kind: string;
   termMonths: number | null;
+  code?: string | null;
 };
 
 /** Sugestões rápidas — a academia pode ajustar o nome e o preço. */
@@ -423,12 +424,6 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                         {" · "}
                         {planChargeLabel(p)}
                         {p.category ? ` · ${p.category}` : ""}
-                        {p.kind === "fee" ? null : (
-                          <>
-                            {" · "}
-                            {billingIntervalLabel(p.billingInterval)}
-                          </>
-                        )}
                         {" · "}
                         {p.active ? (
                           <span className="text-emerald-700">ativo</span>

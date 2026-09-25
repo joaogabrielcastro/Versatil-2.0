@@ -1,11 +1,13 @@
-import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { dueBeforeToday } from "@/lib/billing/due-day-sql";
-import { invoices, studentSubscriptions, subscriptionTerms } from "@/lib/db/schema";
-import type { DbTransaction } from "@/lib/db/with-tenant";
+import { decideCoverage } from "@/lib/billing/renewal-billing";
 import {
-  computeStudentStatus,
-  isSubscriptionActiveAt,
-} from "@/lib/services/student-status-logic";
+  recordRenewalBillingGap,
+  renewalCoverageForStudent,
+} from "@/lib/billing/renewal-access";
+import { invoices, studentSubscriptions } from "@/lib/db/schema";
+import type { DbTransaction } from "@/lib/db/with-tenant";
+import { isSubscriptionActiveAt } from "@/lib/services/student-status-logic";
 
 /** Resposta única para a catraca. O motivo fica só no access_events. */
 export const PUBLIC_ACCESS_DENIAL = "Acesso não autorizado.";
@@ -46,36 +48,20 @@ export async function evaluateStudentAccess(
       ),
     );
 
-  const renewalCoveringNow = await tx
-    .select({ id: subscriptionTerms.id })
-    .from(subscriptionTerms)
-    .innerJoin(
-      studentSubscriptions,
-      eq(subscriptionTerms.subscriptionId, studentSubscriptions.id),
-    )
-    .where(
-      and(
-        eq(subscriptionTerms.tenantId, tenantId),
-        eq(studentSubscriptions.studentId, studentId),
-        eq(subscriptionTerms.source, "renewal"),
-        lte(subscriptionTerms.startsAt, now),
-        or(isNull(subscriptionTerms.endsAt), gte(subscriptionTerms.endsAt, now)),
-      ),
-    )
-    .limit(1);
+  const renewal = await renewalCoverageForStudent(tx, tenantId, studentId, now);
+  if (renewal.review) await recordRenewalBillingGap(tx, tenantId, renewal.review);
 
-  const hasActivePlan =
-    subs.some((s) => isSubscriptionActiveAt(s.startsAt, s.endsAt, now)) ||
-    renewalCoveringNow.length > 0;
-  const status = computeStudentStatus({
+  const originalActive = subs.some((s) =>
+    isSubscriptionActiveAt(s.startsAt, s.endsAt, now),
+  );
+  const decision = decideCoverage({
     hasBadInvoice: badInvoices.length > 0,
-    hasActivePlan,
+    originalActive,
+    renewalCoversNow: renewal.coversNow,
+    renewalChargeMissing: renewal.chargeMissing,
   });
-  if (status === "active") return { allowed: true, internalReason: null };
-  return {
-    allowed: false,
-    internalReason: status === "delinquent" ? "inadimplente" : "inativo",
-  };
+  if (decision.allowed) return { allowed: true, internalReason: null };
+  return { allowed: false, internalReason: decision.internalReason };
 }
 
 /** Falha de banco ou de dependência nunca abre a catraca. */

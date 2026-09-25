@@ -1,7 +1,4 @@
-import {
-  billingIntervalLabel,
-  type BillingInterval,
-} from "@/lib/billing/interval-labels";
+import type { BillingInterval } from "@/lib/billing/interval-labels";
 
 export type PlanKind = "subscription" | "fee";
 
@@ -41,7 +38,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
   },
   {
     code: "academia-mensal-recorrente",
-    name: "Musculação mensal recorrente (cartão)",
+    name: "Musculação mensal recorrente",
     category: "Academia",
     priceCents: 12400,
     billingInterval: "monthly",
@@ -371,13 +368,23 @@ export function planChargeLabel(plan: {
   kind: string;
   billingInterval: string;
   termMonths: number | null;
+  priceCents: number;
+  code?: string | null;
 }): string {
-  if (plan.kind === "fee") return "Taxa avulsa";
+  const money = (cents: number) =>
+    (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  if (plan.kind === "fee") {
+    return `Taxa avulsa de ${money(plan.priceCents)}, sem assinatura`;
+  }
+  if (plan.code === "academia-mensal-recorrente") {
+    return `Mês a mês, ${money(plan.priceCents)} por fatura. Não liga débito automático no cartão`;
+  }
   if (plan.billingInterval === "monthly" && plan.termMonths) {
-    return `${plan.termMonths} parcelas mensais`;
+    const total = plan.priceCents * plan.termMonths;
+    return `${plan.termMonths} meses, ${plan.termMonths} faturas mensais de ${money(plan.priceCents)} (total ${money(total)})`;
   }
   if (plan.billingInterval !== "monthly" && plan.termMonths) {
-    return `${billingIntervalLabel(plan.billingInterval)} à vista`;
+    return `${plan.termMonths} meses, 1 fatura de ${money(plan.priceCents)} cobrindo o período`;
   }
-  return billingIntervalLabel(plan.billingInterval);
+  return `Mês a mês, ${money(plan.priceCents)} por fatura, sem prazo fechado`;
 }

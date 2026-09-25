@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrDateInput } from "@/components/ui/br-date-input";
 import { FlashMessage } from "@/components/ui/flash-message";
@@ -37,6 +37,7 @@ type Invoice = {
   externalId?: string | null;
   gatewayIdempotencyKey?: string | null;
   lastChargeError?: string | null;
+  purpose?: string | null;
 };
 
 type Timeline = {
@@ -87,6 +88,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
     useState<ManualPaymentMethod>("stone_card");
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const feeRequestKey = useRef<string | null>(null);
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();
@@ -113,6 +115,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           studentId,
           amountCents: cents,
           dueAt: dueDate.toISOString(),
+          purpose: "manual",
         }),
       });
       if (!res.ok) {
@@ -134,6 +137,8 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
       currency: "BRL",
     });
     if (!window.confirm(`Lançar ${fee.name} de ${value} em aberto?`)) return;
+    if (!feeRequestKey.current) feeRequestKey.current = crypto.randomUUID();
+    const requestKey = feeRequestKey.current;
     setBusy(true);
     setErr(null);
     setSuccess(null);
@@ -147,13 +152,21 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           amountCents: fee.priceCents,
           dueAt: new Date().toISOString(),
           note: fee.name,
+          purpose: "fee",
+          idempotencyKey: `fee:${fee.id}:${requestKey}`,
         }),
       });
       if (!res.ok) {
         setErr(await readApiError(res, "Não foi possível lançar a taxa."));
         return;
       }
-      setSuccess(`${fee.name} lançada em aberto.`);
+      const body = (await res.json()) as { repeated?: boolean };
+      feeRequestKey.current = null;
+      setSuccess(
+        body.repeated
+          ? `${fee.name} já tinha sido lançada nesta solicitação.`
+          : `${fee.name} lançada em aberto.`,
+      );
       await qc.invalidateQueries({ queryKey: ["billing", studentId] });
     } finally {
       setBusy(false);
@@ -298,6 +311,13 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                       currency: inv.currency,
                     })}
                   </span>
+                  {inv.purpose === "fee" ? (
+                    <span className="ml-2 text-xs">Taxa avulsa</span>
+                  ) : inv.purpose === "subscription" ? (
+                    <span className="ml-2 text-xs">Mensalidade</span>
+                  ) : inv.purpose === "manual" ? (
+                    <span className="ml-2 text-xs">Avulsa manual</span>
+                  ) : null}
                   <span className="ml-2 font-medium">{financeLabel(finance)}</span>
                   {posText ? (
                     <span className="mt-1 block text-xs">{posText}</span>

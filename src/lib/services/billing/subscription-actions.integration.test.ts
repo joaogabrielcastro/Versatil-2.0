@@ -56,7 +56,18 @@ async function fixture() {
       dueAt: new Date("2026-01-15T15:00:00.000Z"),
       paidAt: new Date("2026-01-15T15:00:00.000Z"),
       idempotencyKey: `sub:${sub!.id}:2026-01-15`,
+      purpose: "subscription",
     }).returning();
+    await tx.insert(invoices).values({
+      tenantId,
+      studentId: student!.id,
+      amountCents: 3000,
+      status: "paid",
+      dueAt: new Date("2026-01-20T15:00:00.000Z"),
+      paidAt: new Date("2026-01-20T15:00:00.000Z"),
+      idempotencyKey: `fee:${plan!.id}:taxa-paga`,
+      purpose: "fee",
+    });
     const [future] = await tx.insert(invoices).values({
       tenantId,
       studentId: student!.id,
@@ -100,10 +111,36 @@ describe("ações de assinatura", () => {
     expect(rows.find((row) => row.id === fx.paid)?.status).toBe("paid");
     expect(rows.find((row) => row.id === fx.future)?.status).toBe("void");
 
+    const [ended] = await withTenantTransaction(fx.tenantId, async (tx) => {
+      return tx
+        .select({ endsAt: studentSubscriptions.endsAt })
+        .from(studentSubscriptions)
+        .where(eq(studentSubscriptions.id, fx.sub));
+    });
+    expect(ended?.endsAt?.toISOString()).toBe("2026-02-15T02:59:59.999Z");
+
     const access = await withTenantTransaction(fx.tenantId, async (tx) => {
       return evaluateStudentAccess(tx, fx.tenantId, fx.student, now);
     });
     expect(access.allowed).toBe(true);
+    const lastCovered = await withTenantTransaction(fx.tenantId, async (tx) => {
+      return evaluateStudentAccess(
+        tx,
+        fx.tenantId,
+        fx.student,
+        new Date("2026-02-15T02:59:59.999Z"),
+      );
+    });
+    expect(lastCovered.allowed).toBe(true);
+    const nextMorning = await withTenantTransaction(fx.tenantId, async (tx) => {
+      return evaluateStudentAccess(
+        tx,
+        fx.tenantId,
+        fx.student,
+        new Date("2026-02-15T03:00:00.000Z"),
+      );
+    });
+    expect(nextMorning.allowed).toBe(false);
 
     const other = await createTenantWithAdmin({
       name: "Outra",
@@ -186,6 +223,6 @@ describe("ações de assinatura", () => {
         .where(eq(invoices.studentId, fx.student));
     });
     expect(rows.filter((row) => row.status === "void")).toHaveLength(1);
-    expect(rows.filter((row) => row.status === "paid")).toHaveLength(1);
+    expect(rows.filter((row) => row.status === "paid")).toHaveLength(2);
   });
 });

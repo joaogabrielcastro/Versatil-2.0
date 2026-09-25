@@ -148,6 +148,20 @@
       "when": 1778611000000,
       "tag": "0020_class_schedule_and_plan_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778612000000,
+      "tag": "0021_invoice_purpose",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778613000000,
+      "tag": "0022_renewal_start_boundary",
+      "breakpoints": true
     }
   ]
 }

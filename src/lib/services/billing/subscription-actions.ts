@@ -9,6 +9,7 @@ import {
   paidPeriodEnd,
 } from "@/lib/billing/subscription-lifecycle";
 import { subscriptionIdempotencyKey } from "@/lib/billing/period";
+import { renewalStartsAt } from "@/lib/billing/renewal-billing";
 import {
   billingReviews,
   invoices,
@@ -57,8 +58,9 @@ export async function cancelSubscription(input: {
       };
     }
 
+    const prefix = `sub:${sub.id}:`;
     const paidRows = await tx
-      .select({ dueAt: invoices.dueAt })
+      .select({ dueAt: invoices.dueAt, idempotencyKey: invoices.idempotencyKey })
       .from(invoices)
       .where(
         and(
@@ -71,7 +73,7 @@ export async function cancelSubscription(input: {
     const coverage = paidPeriodEnd(
       now,
       paidRows
-        .filter((row) => row.dueAt)
+        .filter((row) => row.dueAt && row.idempotencyKey?.startsWith(prefix))
         .map((row) => ({ dueAt: row.dueAt, interval })),
     );
     const effective = coverage ?? now;
@@ -90,7 +92,6 @@ export async function cancelSubscription(input: {
           eq(invoices.status, "open"),
         ),
       );
-    const prefix = `sub:${sub.id}:`;
     const related = openRows.filter((row) => row.idempotencyKey?.startsWith(prefix));
     const decision = invoicesToVoid(effective, related);
     if (decision.blockedByPos.length > 0) {
@@ -331,8 +332,13 @@ export async function renewTerm(input: {
     if (!sub.endsAt) {
       return { ok: false, http: 409, error: "Assinatura sem prazo não usa renovação manual." };
     }
-    if (input.endsAt.getTime() <= sub.endsAt.getTime()) {
-      return { ok: false, http: 409, error: "A nova vigência precisa começar depois do fim atual." };
+    const startsAt = renewalStartsAt(sub.endsAt);
+    if (input.endsAt.getTime() <= startsAt.getTime()) {
+      return {
+        ok: false,
+        http: 409,
+        error: "A nova vigência precisa terminar depois do fim atual.",
+      };
     }
     const planId = input.planId ?? sub.planId;
     const [plan] = await tx
@@ -348,7 +354,6 @@ export async function renewTerm(input: {
         error: "Taxa avulsa não substitui um plano. Lance a cobrança na ficha do aluno.",
       };
     }
-    const startsAt = sub.endsAt;
     const existingTerms = await tx
       .select({
         startsAt: subscriptionTerms.startsAt,

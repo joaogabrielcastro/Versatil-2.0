@@ -31,6 +31,19 @@ function atSaoPauloNoon(date: CivilDate): Date {
   return new Date(Date.UTC(date.y, date.m - 1, date.d, 15, 0, 0));
 }
 
+/** 00:00 em São Paulo. */
+function atSaoPauloStart(date: CivilDate): Date {
+  return new Date(Date.UTC(date.y, date.m - 1, date.d, 3, 0, 0, 0));
+}
+
+/**
+ * Último instante do dia civil anterior ao dia de `date`, em São Paulo.
+ * A vigência inclui esse dia inteiro e exclui o dia seguinte.
+ */
+export function endOfPreviousCivilDay(date: Date): Date {
+  return new Date(atSaoPauloStart(civilDate(date)).getTime() - 1);
+}
+
 function addCalendarMonths(date: CivilDate, months: number): CivilDate {
   const index = date.y * 12 + (date.m - 1) + months;
   const y = Math.floor(index / 12);

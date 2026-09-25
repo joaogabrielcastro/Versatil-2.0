@@ -1,11 +1,11 @@
 import type { BillingInterval } from "@/lib/billing/interval-labels";
-import { addDays, addMonths, periodDueAt } from "@/lib/billing/period";
+import { addMonths, endOfPreviousCivilDay, periodDueAt } from "@/lib/billing/period";
 
 /**
- * Término que cabe no prazo comercial do plano.
- * Mensal com prazo: N parcelas, e o dia seguinte ao término seria a parcela N+1.
- * Trimestral, semestral ou anual com prazo: uma cobrança, e o término cai
- * um dia antes do próximo ciclo.
+ * Término do prazo comercial.
+ * A próxima cobrança fica de fora. O acesso vale o dia civil anterior inteiro,
+ * no fuso de São Paulo, e não começa o dia seguinte.
+ * Mensal com prazo: N faturas. Outros intervalos com prazo: uma fatura.
  */
 export function suggestedSubscriptionEnd(
   startsAt: Date,
@@ -17,5 +17,5 @@ export function suggestedSubscriptionEnd(
     interval === "monthly"
       ? addMonths(startsAt, termMonths)
       : periodDueAt(startsAt, interval, 1);
-  return addDays(nextCharge, -1);
+  return endOfPreviousCivilDay(nextCharge);
 }

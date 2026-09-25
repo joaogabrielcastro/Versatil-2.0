@@ -12,7 +12,19 @@ describe("ciclo de assinatura", () => {
     const end = paidPeriodEnd(noon("2026-01-20"), [
       { dueAt: noon("2026-01-15"), interval: "monthly" },
     ]);
-    expect(end?.toISOString()).toBe("2026-02-15T15:00:00.000Z");
+    expect(end?.toISOString()).toBe("2026-02-15T02:59:59.999Z");
+  });
+
+  it("o trimestral à vista cobre até o fim do dia anterior à próxima cobrança", () => {
+    const end = paidPeriodEnd(noon("2026-09-25"), [
+      { dueAt: noon("2026-09-25"), interval: "quarterly" },
+    ]);
+    expect(end?.toISOString()).toBe("2026-12-25T02:59:59.999Z");
+    expect(
+      paidPeriodEnd(noon("2026-12-25"), [
+        { dueAt: noon("2026-09-25"), interval: "quarterly" },
+      ]),
+    ).toBeNull();
   });
 
   it("sem período pago vigente o cancelamento é imediato", () => {

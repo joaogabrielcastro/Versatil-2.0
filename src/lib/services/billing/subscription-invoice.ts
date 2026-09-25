@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/with-tenant";
 import { toIsoDateInTz } from "@/lib/dates/br";
 import { eachTenant } from "@/lib/cron/record";
+import { renewalChargePeriods } from "@/lib/billing/renewal-billing";
 import { noteBillingReview } from "@/lib/services/billing/subscription-actions";
 import { recalculateStudentStatus } from "@/lib/services/student-status";
 
@@ -34,6 +35,7 @@ export async function createInvoiceIfAbsent(
     dueAt: Date;
     idempotencyKey: string;
     note?: string;
+    purpose?: "subscription" | "fee" | "manual";
   },
 ): Promise<{ created: boolean; invoiceId: string | null }> {
   const [existing] = await tx
@@ -58,6 +60,7 @@ export async function createInvoiceIfAbsent(
         status: "open",
         dueAt: input.dueAt,
         idempotencyKey: input.idempotencyKey,
+        purpose: input.purpose ?? null,
       })
       .onConflictDoNothing({
         target: [invoices.tenantId, invoices.idempotencyKey],
@@ -108,6 +111,7 @@ export async function createFirstSubscriptionInvoice(
       dueAt,
       idempotencyKey,
       note: "Primeira fatura da assinatura.",
+      purpose: "subscription",
     });
   });
 
@@ -116,8 +120,8 @@ export async function createFirstSubscriptionInvoice(
 
 export async function generateSubscriptionInvoicesForTenant(
   tenantId: string,
+  now = new Date(),
 ): Promise<{ created: number }> {
-  const now = new Date();
   let created = 0;
   const studentIds = new Set<string>();
   const reviews: Array<{ subscriptionId: string; periodKey: string; reason: string }> = [];
@@ -222,10 +226,53 @@ export async function generateSubscriptionInvoicesForTenant(
           dueAt: period.dueAt,
           idempotencyKey: period.idempotencyKey,
           note: "Fatura recorrente do plano.",
+          purpose: "subscription",
         });
         if (result.created) {
           created++;
           studentIds.add(sub.studentId);
+        }
+      }
+
+      if (sub.cancelRequestedAt) continue;
+      for (const term of terms) {
+        if (created >= cap) break;
+        if (term.source !== "renewal") continue;
+        const renewal = renewalChargePeriods(
+          {
+            subscriptionId: sub.id,
+            startsAt: term.startsAt,
+            endsAt: term.endsAt,
+            billingInterval: term.billingInterval,
+            priceCents: term.priceCents,
+          },
+          now,
+        );
+        if (renewal.review) {
+          reviews.push({
+            subscriptionId: sub.id,
+            periodKey: `renewal:${term.id}:invalid`,
+            reason: renewal.review,
+          });
+          continue;
+        }
+        for (const period of renewal.periods) {
+          if (created >= cap) break;
+          const dueDay = toIsoDateInTz(period.dueAt);
+          if (cut && dueDay >= cut) continue;
+          const result = await createInvoiceIfAbsent(tx, {
+            tenantId,
+            studentId: sub.studentId,
+            amountCents: term.priceCents,
+            dueAt: period.dueAt,
+            idempotencyKey: period.idempotencyKey,
+            note: "Fatura da renovação.",
+            purpose: "subscription",
+          });
+          if (result.created) {
+            created++;
+            studentIds.add(sub.studentId);
+          }
         }
       }
     }

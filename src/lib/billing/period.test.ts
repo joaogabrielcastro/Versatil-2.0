@@ -5,6 +5,7 @@ import {
   subscriptionIdempotencyKey,
 } from "@/lib/billing/period";
 import { suggestedSubscriptionEnd } from "@/lib/billing/term-end";
+import { isSubscriptionActiveAt } from "@/lib/services/student-status-logic";
 
 describe("billing period", () => {
   it("gera chave pela data civil de São Paulo", () => {
@@ -70,10 +71,10 @@ describe("billing period", () => {
     );
   });
 
-  it("plano mensal de 3 meses gera exatamente três parcelas", () => {
+  it("plano mensal de 3 meses gera exatamente três parcelas e cobre o último dia inteiro", () => {
     const startsAt = new Date("2026-01-15T15:00:00.000Z");
     const endsAt = suggestedSubscriptionEnd(startsAt, "monthly", 3);
-    expect(endsAt?.toISOString()).toBe("2026-04-14T15:00:00.000Z");
+    expect(endsAt?.toISOString()).toBe("2026-04-15T02:59:59.999Z");
     const periods = billablePeriodsForSubscription(
       "sub-term",
       startsAt,
@@ -86,22 +87,57 @@ describe("billing period", () => {
       "sub:sub-term:2026-02-15",
       "sub:sub-term:2026-03-15",
     ]);
+    expect(isSubscriptionActiveAt(startsAt, endsAt, new Date("2026-04-15T02:59:59.999Z"))).toBe(
+      true,
+    );
+    expect(isSubscriptionActiveAt(startsAt, endsAt, new Date("2026-04-15T03:00:00.000Z"))).toBe(
+      false,
+    );
   });
 
-  it("trimestral à vista gera uma cobrança e termina um dia antes do próximo ciclo", () => {
+  it("trimestral à vista gera uma cobrança e cobre até o fim do dia anterior ao próximo ciclo", () => {
     const startsAt = new Date("2026-01-15T15:00:00.000Z");
     const endsAt = suggestedSubscriptionEnd(startsAt, "quarterly", 3);
-    expect(endsAt?.toISOString()).toBe("2026-04-14T15:00:00.000Z");
+    expect(endsAt?.toISOString()).toBe("2026-04-15T02:59:59.999Z");
     const periods = billablePeriodsForSubscription(
       "sub-upfront",
       startsAt,
       endsAt,
       "quarterly",
-      new Date("2026-12-01T15:00:00.000Z"),
+      new Date("2027-01-01T15:00:00.000Z"),
     );
     expect(periods.map((period) => period.idempotencyKey)).toEqual([
       "sub:sub-upfront:2026-01-15",
     ]);
+  });
+
+  it("prazo a partir do dia 31 não cria a cobrança seguinte e respeita fevereiro bissexto", () => {
+    const start = new Date("2026-01-31T15:00:00.000Z");
+    const endsAt = suggestedSubscriptionEnd(start, "monthly", 3);
+    expect(endsAt?.toISOString()).toBe("2026-04-30T02:59:59.999Z");
+    expect(
+      billablePeriodsForSubscription(
+        "sub-31",
+        start,
+        endsAt,
+        "monthly",
+        new Date("2026-12-01T15:00:00.000Z"),
+      ).map((period) => period.idempotencyKey),
+    ).toEqual(["sub:sub-31:2026-01-31", "sub:sub-31:2026-02-28", "sub:sub-31:2026-03-31"]);
+
+    const leap = new Date("2024-01-31T15:00:00.000Z");
+    const leapEnd = suggestedSubscriptionEnd(leap, "quarterly", 3);
+    expect(periodDueAt(leap, "monthly", 1).toISOString()).toBe("2024-02-29T15:00:00.000Z");
+    expect(leapEnd?.toISOString()).toBe("2024-04-30T02:59:59.999Z");
+    expect(
+      billablePeriodsForSubscription(
+        "sub-leap",
+        leap,
+        leapEnd,
+        "quarterly",
+        new Date("2024-12-01T15:00:00.000Z"),
+      ),
+    ).toHaveLength(1);
   });
 
   it("plano sem prazo não sugere término", () => {
