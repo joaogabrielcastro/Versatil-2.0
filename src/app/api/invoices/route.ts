@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { feeAccessEffectForPlan } from "@/lib/billing/access-effect";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -23,6 +24,7 @@ const createSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(255).optional(),
   note: z.string().trim().min(1).max(500).optional(),
   purpose: z.enum(["subscription", "fee", "manual"]).optional(),
+  planId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
             status: invoices.status,
             dueAt: invoices.dueAt,
             purpose: invoices.purpose,
+            accessEffect: invoices.accessEffect,
           })
           .from(invoices)
           .where(
@@ -77,6 +80,11 @@ export async function POST(request: Request) {
           )
           .limit(1);
         if (existing) return { invoice: existing, repeated: true };
+      }
+
+      let accessEffect: "block" | "none" | null = null;
+      if (body.purpose === "fee" && body.planId) {
+        accessEffect = await feeAccessEffectForPlan(tx, tenantId, body.planId);
       }
 
       const inserted = await tx
@@ -91,6 +99,7 @@ export async function POST(request: Request) {
           externalId: body.externalId ?? null,
           idempotencyKey: body.idempotencyKey ?? null,
           purpose: body.purpose ?? "manual",
+          accessEffect,
         })
         .onConflictDoNothing({
           target: [invoices.tenantId, invoices.idempotencyKey],
@@ -103,6 +112,7 @@ export async function POST(request: Request) {
           status: invoices.status,
           dueAt: invoices.dueAt,
           purpose: invoices.purpose,
+          accessEffect: invoices.accessEffect,
         });
 
       const inv = inserted[0];
@@ -117,6 +127,7 @@ export async function POST(request: Request) {
             status: invoices.status,
             dueAt: invoices.dueAt,
             purpose: invoices.purpose,
+            accessEffect: invoices.accessEffect,
           })
           .from(invoices)
           .where(
@@ -155,6 +166,7 @@ export async function POST(request: Request) {
           studentId: body.studentId,
           amountCents: body.amountCents,
           purpose: body.purpose ?? "manual",
+          accessEffect: result.invoice.accessEffect ?? null,
         },
       });
     }
@@ -166,6 +178,9 @@ export async function POST(request: Request) {
   } catch (e) {
     if (e instanceof Error && e.message === "student_not_found") {
       return jsonError(404, "Aluno não encontrado.");
+    }
+    if (e instanceof Error && e.message === "fee_plan_required") {
+      return jsonError(400, "A taxa precisa ser um cadastro de taxa desta academia.");
     }
     return jsonError(
       409,

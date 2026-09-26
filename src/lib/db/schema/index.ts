@@ -173,6 +173,11 @@ export const plans = pgTable(
     /** subscription = mensalidade; fee = cobrança única (matrícula, avaliação…). */
     kind: varchar("kind", { length: 32 }).notNull().default("subscription"),
     /**
+     * Efeito de uma taxa vencida na catraca. Vale para cobranças futuras.
+     * block = impede acesso; none = só financeiro; null = sem classificação.
+     */
+    accessEffect: varchar("access_effect", { length: 16 }),
+    /**
      * Prazo comercial em meses. No mensal, é o número de parcelas.
      * No trimestral/semestral/anual, indica pagamento à vista de um ciclo.
      */
@@ -194,6 +199,10 @@ export const plans = pgTable(
     check(
       "plans_kind_check",
       sql`${t.kind} IN ('subscription', 'fee')`,
+    ),
+    check(
+      "plans_access_effect_check",
+      sql`${t.accessEffect} IS NULL OR ${t.accessEffect} IN ('block', 'none')`,
     ),
     check(
       "plans_term_months_positive",
@@ -390,6 +399,11 @@ export const invoices = pgTable(
     idempotencyKey: varchar("idempotency_key", { length: 255 }),
     /** subscription = mensalidade; fee = taxa avulsa; manual = valor livre. */
     purpose: varchar("purpose", { length: 32 }),
+    /**
+     * Cópia da política da taxa no lançamento. null em fatura antiga
+     * continua podendo bloquear até revisão administrativa.
+     */
+    accessEffect: varchar("access_effect", { length: 16 }),
     /** Recorrência automática: nº de tentativas de cobrança e backoff. */
     chargeAttempts: integer("charge_attempts").notNull().default(0),
     nextChargeAttemptAt: timestamp("next_charge_attempt_at", {
@@ -417,6 +431,10 @@ export const invoices = pgTable(
     check(
       "invoices_purpose_check",
       sql`${t.purpose} IS NULL OR ${t.purpose} IN ('subscription', 'fee', 'manual')`,
+    ),
+    check(
+      "invoices_access_effect_check",
+      sql`${t.accessEffect} IS NULL OR ${t.accessEffect} IN ('block', 'none')`,
     ),
   ],
 );

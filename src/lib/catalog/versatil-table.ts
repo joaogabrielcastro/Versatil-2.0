@@ -1,3 +1,4 @@
+import { catalogFeeAccessEffect, type AccessEffect } from "@/lib/billing/access-effect";
 import type { BillingInterval } from "@/lib/billing/interval-labels";
 
 export type PlanKind = "subscription" | "fee";
@@ -10,6 +11,7 @@ export type CatalogPlan = {
   billingInterval: BillingInterval;
   kind: PlanKind;
   termMonths: number | null;
+  accessEffect?: AccessEffect | null;
 };
 
 export type CatalogSlot = {
@@ -215,6 +217,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
     billingInterval: "monthly",
     kind: "fee",
     termMonths: null,
+    accessEffect: catalogFeeAccessEffect("taxa-matricula-academia"),
   },
   {
     code: "taxa-nutricionista",
@@ -224,6 +227,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
     billingInterval: "monthly",
     kind: "fee",
     termMonths: null,
+    accessEffect: catalogFeeAccessEffect("taxa-nutricionista"),
   },
   {
     code: "taxa-avaliacao-fisica",
@@ -233,6 +237,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
     billingInterval: "monthly",
     kind: "fee",
     termMonths: null,
+    accessEffect: catalogFeeAccessEffect("taxa-avaliacao-fisica"),
   },
   {
     code: "taxa-matricula-crossfit",
@@ -242,6 +247,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
     billingInterval: "monthly",
     kind: "fee",
     termMonths: null,
+    accessEffect: catalogFeeAccessEffect("taxa-matricula-crossfit"),
   },
   {
     code: "taxa-aula-avulsa-crossfit",
@@ -251,6 +257,7 @@ export const VERSATIL_PLANS: CatalogPlan[] = [
     billingInterval: "monthly",
     kind: "fee",
     termMonths: null,
+    accessEffect: catalogFeeAccessEffect("taxa-aula-avulsa-crossfit"),
   },
 ];
 
@@ -370,11 +377,18 @@ export function planChargeLabel(plan: {
   termMonths: number | null;
   priceCents: number;
   code?: string | null;
+  accessEffect?: string | null;
 }): string {
   const money = (cents: number) =>
     (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   if (plan.kind === "fee") {
-    return `Taxa avulsa de ${money(plan.priceCents)}, sem assinatura`;
+    const access =
+      plan.accessEffect === "block"
+        ? " Se vencer, bloqueia a catraca."
+        : plan.accessEffect === "none"
+          ? " Não bloqueia a catraca."
+          : " Sem classificação de acesso: se vencer, ainda bloqueia.";
+    return `Taxa avulsa de ${money(plan.priceCents)}, sem assinatura.${access}`;
   }
   if (plan.code === "academia-mensal-recorrente") {
     return `Mês a mês, ${money(plan.priceCents)} por fatura. Não liga débito automático no cartão`;

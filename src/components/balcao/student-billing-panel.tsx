@@ -17,6 +17,7 @@ import { timelineEventLabel } from "@/lib/labels";
 import { manualPaymentLabel } from "@/lib/billing/payment-methods";
 import { StudentMonthHistory } from "@/components/balcao/student-month-history";
 import { AutoRenewPanel } from "@/components/balcao/auto-renew-panel";
+import { feeAccessLabel } from "@/lib/billing/access-effect";
 import {
   financeLabel,
   financeSituation,
@@ -38,6 +39,7 @@ type Invoice = {
   gatewayIdempotencyKey?: string | null;
   lastChargeError?: string | null;
   purpose?: string | null;
+  accessEffect?: string | null;
 };
 
 type Timeline = {
@@ -153,6 +155,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           dueAt: new Date().toISOString(),
           note: fee.name,
           purpose: "fee",
+          planId: fee.id,
           idempotencyKey: `fee:${fee.id}:${requestKey}`,
         }),
       });
@@ -312,7 +315,9 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                     })}
                   </span>
                   {inv.purpose === "fee" ? (
-                    <span className="ml-2 text-xs">Taxa avulsa</span>
+                    <span className="ml-2 text-xs">
+                      Taxa avulsa. {feeAccessLabel(inv.accessEffect)}
+                    </span>
                   ) : inv.purpose === "subscription" ? (
                     <span className="ml-2 text-xs">Mensalidade</span>
                   ) : inv.purpose === "manual" ? (

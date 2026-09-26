@@ -1,4 +1,5 @@
 import { and, eq, or } from "drizzle-orm";
+import { invoiceMayBlockAccess } from "@/lib/billing/access-effect";
 import { dueBeforeToday } from "@/lib/billing/due-day-sql";
 import { decideCoverage } from "@/lib/billing/renewal-billing";
 import {
@@ -29,6 +30,7 @@ export async function evaluateStudentAccess(
           and(eq(invoices.status, "open"), dueBeforeToday(invoices.dueAt, now)),
           eq(invoices.status, "uncollectible"),
         ),
+        invoiceMayBlockAccess(),
       ),
     )
     .limit(1);

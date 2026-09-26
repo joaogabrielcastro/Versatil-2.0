@@ -26,6 +26,10 @@ export function effectiveStudentStatusSql(now = new Date()): SQL<StudentComputed
             )
             OR inv.status = 'uncollectible'
           )
+          AND (
+            inv.purpose IS DISTINCT FROM 'fee'
+            OR inv.access_effect IS DISTINCT FROM 'none'
+          )
       ) THEN 'delinquent'
       WHEN EXISTS (
         SELECT 1 FROM student_subscriptions AS sub

@@ -30,6 +30,8 @@ export async function GET() {
         externalId: invoices.externalId,
         gatewayIdempotencyKey: invoices.gatewayIdempotencyKey,
         lastChargeError: invoices.lastChargeError,
+        purpose: invoices.purpose,
+        accessEffect: invoices.accessEffect,
       })
       .from(invoices)
       .innerJoin(students, eq(students.id, invoices.studentId))

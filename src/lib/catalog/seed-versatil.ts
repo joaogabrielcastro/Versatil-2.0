@@ -26,6 +26,7 @@ export async function seedVersatilCatalog(tx: DbTransaction, tenantId: string) {
       termMonths: plan.termMonths,
       priceCents: plan.priceCents,
       billingInterval: plan.billingInterval,
+      accessEffect: plan.accessEffect ?? null,
       active: true,
     });
     plansCreated += 1;

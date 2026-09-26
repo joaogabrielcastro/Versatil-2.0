@@ -7,9 +7,11 @@ type InvoiceLike = {
   dueAt: string;
   paidAt: string | null;
   amountCents: number;
+  purpose?: string | null;
+  accessEffect?: string | null;
 };
 
-export type MonthStatus = "paid" | "open" | "overdue" | "other";
+export type MonthStatus = "paid" | "open" | "overdue" | "service" | "other";
 
 export type MonthCell = {
   key: string; // yyyy-mm
@@ -53,15 +55,19 @@ export function buildMonthCells(
   return cells;
 }
 
+function blocksAccess(inv: InvoiceLike): boolean {
+  return !(inv.purpose === "fee" && inv.accessEffect === "none");
+}
+
 function summarizeMonth(list: InvoiceLike[], now: Date): MonthStatus {
   if (list.length === 0) return "other";
-  const hasOverdue = list.some(
+  const overdue = list.filter(
     (inv) =>
-      inv.status === "open" && isInvoiceOverdue(inv.dueAt, now),
+      (inv.status === "open" && isInvoiceOverdue(inv.dueAt, now)) ||
+      inv.status === "uncollectible",
   );
-  if (hasOverdue || list.some((inv) => inv.status === "uncollectible")) {
-    return "overdue";
-  }
+  if (overdue.some(blocksAccess)) return "overdue";
+  if (overdue.length > 0) return "service";
   if (list.every((inv) => inv.status === "paid")) return "paid";
   if (list.some((inv) => inv.status === "open")) return "open";
   return "other";
@@ -71,6 +77,7 @@ const STATUS_CLASS: Record<MonthStatus, string> = {
   paid: "border-emerald-200 bg-emerald-50 text-emerald-800",
   open: "border-amber-200 bg-amber-50 text-amber-900",
   overdue: "border-red-200 bg-red-50 text-red-800",
+  service: "border-sky-200 bg-sky-50 text-sky-900",
   other: "border-border bg-muted/40 text-muted-foreground",
 };
 
@@ -78,6 +85,7 @@ const STATUS_LABEL: Record<MonthStatus, string> = {
   paid: "Pago",
   open: "Em aberto",
   overdue: "Inadimplente",
+  service: "Serviço vencido",
   other: "Sem fatura",
 };
 
@@ -120,6 +128,10 @@ export function StudentMonthHistory({ invoices }: { invoices: InvoiceLike[] }) {
         <li>
           <span className="mr-1 inline-block size-2 rounded-full bg-red-500" />
           Inadimplente
+        </li>
+        <li>
+          <span className="mr-1 inline-block size-2 rounded-full bg-sky-500" />
+          Serviço vencido
         </li>
         <li>
           <span className="mr-1 inline-block size-2 rounded-full bg-zinc-300" />

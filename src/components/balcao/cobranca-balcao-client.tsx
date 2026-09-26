@@ -37,6 +37,8 @@ type OpenInvoice = {
   dueAt: string;
   status: string;
   overdue: boolean;
+  purpose?: string | null;
+  accessEffect?: string | null;
   gatewayChargeStatus?: string | null;
   externalId?: string | null;
   gatewayIdempotencyKey?: string | null;
@@ -161,6 +163,12 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
 
   const items = q.data?.items ?? [];
   const overdue = items.filter((i) => i.overdue);
+  const blockingOverdue = overdue.filter(
+    (item) => !(item.purpose === "fee" && item.accessEffect === "none"),
+  );
+  const serviceOverdue = overdue.filter(
+    (item) => item.purpose === "fee" && item.accessEffect === "none",
+  );
 
   return (
     <div className="space-y-6">
@@ -238,10 +246,15 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
         </CardContent>
       </Card>
 
-      {overdue.length > 0 ? (
+      {blockingOverdue.length > 0 ? (
         <p className="text-sm font-medium text-red-700">
-          {overdue.length} fatura(s) vencida(s) — alunos podem estar bloqueados na
-          catraca.
+          {blockingOverdue.length} fatura(s) vencida(s) bloqueiam a catraca.
+        </p>
+      ) : null}
+      {serviceOverdue.length > 0 ? (
+        <p className="text-sm text-sky-900">
+          {serviceOverdue.length} serviço(s) vencido(s) seguem no financeiro e não
+          bloqueiam a catraca.
         </p>
       ) : null}
 
@@ -286,6 +299,9 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                   <span className="ml-2 font-medium text-foreground">
                     {financeLabel(finance)}
                   </span>
+                  {inv.purpose === "fee" && inv.accessEffect === "none" ? (
+                    <span className="ml-2">Não bloqueia a catraca.</span>
+                  ) : null}
                   {posText ? (
                     <span className="mt-1 block text-xs">{posText}</span>
                   ) : null}

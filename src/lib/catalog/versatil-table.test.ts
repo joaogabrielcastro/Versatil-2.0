@@ -32,6 +32,13 @@ describe("tabela Versátil", () => {
     expect(price("taxa-avaliacao-fisica")).toBe(3000);
     expect(price("taxa-matricula-crossfit")).toBe(5000);
     expect(price("taxa-aula-avulsa-crossfit")).toBe(4000);
+    const effect = (code: string) =>
+      VERSATIL_PLANS.find((plan) => plan.code === code)?.accessEffect;
+    expect(effect("taxa-matricula-academia")).toBe("block");
+    expect(effect("taxa-matricula-crossfit")).toBe("block");
+    expect(effect("taxa-nutricionista")).toBe("none");
+    expect(effect("taxa-avaliacao-fisica")).toBe("none");
+    expect(effect("taxa-aula-avulsa-crossfit")).toBe("none");
   });
 
     it("soma as parcelas do cartaz sem tratar isso como parcelamento de cartão", () => {
