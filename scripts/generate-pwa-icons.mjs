@@ -1,5 +1,5 @@
 /**
- * Gera ícones quadrados para PWA a partir do logo.
+ * Gera ícones quadrados para PWA a partir do monograma vetorial.
  * Uso: npm run icons:generate
  */
 import sharp from "sharp";
@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const source = path.join(root, "public", "versatil-academia-logo.png");
+const source = path.join(root, "public", "brand", "versatil-mark.svg");
 const BG = { r: 244, g: 244, b: 245, alpha: 1 };
 
 async function squareIcon(size, logoScale, outName) {
@@ -42,18 +42,18 @@ async function squareIcon(size, logoScale, outName) {
   console.log(outName);
 }
 
-// Ícones de instalação — logo ocupa ~90% do quadrado
+// Ícones de instalação — cantos e fundo já fazem parte do monograma.
 for (const size of [192, 512]) {
-  await squareIcon(size, 0.9, `icon-${size}.png`);
+  await squareIcon(size, 0.88, `icon-${size}.png`);
 }
 
-// Maskable Android — área segura ~80%, logo um pouco menor
+// Maskable Android — respeita a área segura central de 80%.
 for (const size of [192, 512]) {
   await squareIcon(size, 0.72, `icon-maskable-${size}.png`);
 }
 
 // Apple + favicons
-await squareIcon(180, 0.9, "apple-touch-icon.png");
+await squareIcon(180, 0.88, "apple-touch-icon.png");
 await squareIcon(32, 0.88, "favicon-32.png");
 await squareIcon(16, 0.88, "favicon-16.png");
 

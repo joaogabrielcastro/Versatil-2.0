@@ -160,7 +160,6 @@ export function EstoquePageClient({ isAdmin }: { isAdmin: boolean }) {
   useEffect(() => {
     const q = studentQ.trim();
     if (q.length < 2) {
-      setStudentHits([]);
       return;
     }
     const t = window.setTimeout(() => {
@@ -180,7 +179,9 @@ export function EstoquePageClient({ isAdmin }: { isAdmin: boolean }) {
     return () => window.clearTimeout(t);
   }, [studentQ]);
 
-  const products = productsQ.data ?? [];
+  const visibleStudentHits = studentQ.trim().length < 2 ? [] : studentHits;
+
+  const products = useMemo(() => productsQ.data ?? [], [productsQ.data]);
   const sales = salesQ.data ?? [];
   const movements = movementsQ.data ?? [];
 
@@ -1034,9 +1035,9 @@ export function EstoquePageClient({ isAdmin }: { isAdmin: boolean }) {
                       value={studentQ}
                       onChange={(e) => setStudentQ(e.target.value)}
                     />
-                    {studentHits.length > 0 ? (
+                    {visibleStudentHits.length > 0 ? (
                       <ul className="overflow-hidden rounded-md border border-border">
-                        {studentHits.map((s) => (
+                        {visibleStudentHits.map((s) => (
                           <li key={s.id}>
                             <button
                               type="button"

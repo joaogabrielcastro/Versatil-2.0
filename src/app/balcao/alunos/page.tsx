@@ -51,10 +51,6 @@ export default function AlunosPage() {
   const [offset, setOffset] = useState(0);
   const debounced = useDebouncedValue(q, 300);
 
-  useEffect(() => {
-    setOffset(0);
-  }, [debounced, status]);
-
   const query = useQuery({
     queryKey: ["students", debounced, status, offset],
     queryFn: () => fetchStudents(debounced, offset, status),
@@ -84,7 +80,10 @@ export default function AlunosPage() {
         <Input
           placeholder="Buscar aluno…"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOffset(0);
+          }}
           className="pl-9"
           aria-label="Buscar aluno"
         />
@@ -103,7 +102,10 @@ export default function AlunosPage() {
             type="button"
             size="sm"
             variant={status === value ? "default" : "outline"}
-            onClick={() => setStatus(value)}
+            onClick={() => {
+              setStatus(value);
+              setOffset(0);
+            }}
           >
             {label}
           </Button>

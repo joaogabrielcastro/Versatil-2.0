@@ -9,14 +9,14 @@ type VersatilLogoProps = {
   priority?: boolean;
 };
 
-/** Logo oficial Versátil Academia (`public/versatil-academia-logo.png`). */
+/** Wordmark vetorial oficial da Versátil Academia. */
 export function VersatilLogo({
   height = 52,
   className = "",
   href,
   priority = false,
 }: VersatilLogoProps) {
-  const width = Math.round(height * 2.85);
+  const width = Math.round(height * (640 / 180));
 
   const mark = (
     <Image

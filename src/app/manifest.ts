@@ -8,6 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Gestão da academia — balcão, treinos, presença, cobrança e catraca.",
     start_url: "/",
+    id: "/",
     scope: "/",
     display: "standalone",
     background_color: BRAND.colors.background,
@@ -16,18 +17,6 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "pt-BR",
     categories: ["business", "productivity"],
     icons: [
-      {
-        src: BRAND.favicon16,
-        sizes: "16x16",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: BRAND.favicon32,
-        sizes: "32x32",
-        type: "image/png",
-        purpose: "any",
-      },
       {
         src: BRAND.icon192,
         sizes: "192x192",

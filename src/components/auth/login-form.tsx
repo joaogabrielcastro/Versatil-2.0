@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { AppShellHeader } from "@/components/brand/app-shell-header";
@@ -41,16 +41,6 @@ export function LoginForm({ subdomainSlug, initialSlug = "" }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isDemo) {
-      setTenantSlug(DEMO.tenantSlug);
-      setEmail(DEMO.email);
-      setPassword(DEMO.password);
-    } else if (resolvedSlug) {
-      setTenantSlug(resolvedSlug);
-    }
-  }, [isDemo, resolvedSlug]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -3,7 +3,7 @@ import { AUTH_COOKIE_NAME } from "@/lib/auth/constants";
 import { verifySessionToken } from "@/lib/auth/jwt";
 import { trustedTenantHeaders } from "@/lib/tenant/host-slug";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const requestHeaders = trustedTenantHeaders(
     request.headers,

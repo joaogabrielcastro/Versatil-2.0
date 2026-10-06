@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   index,
   check,
+  date,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -559,6 +560,73 @@ export const kioskDevices = pgTable(
   (t) => [
     index("kiosk_devices_tenant_idx").on(t.tenantId),
     uniqueIndex("kiosk_devices_token_hash").on(t.tokenHash),
+  ],
+);
+
+/** Autorização de um dia civil. Não é assinatura, presença nem contador de entradas. */
+export const dailyAccessGrants = pgTable(
+  "daily_access_grants",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    kind: varchar("kind", { length: 32 }).notNull(),
+    activityCode: varchar("activity_code", { length: 32 }).notNull(),
+    validOn: date("valid_on").notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id, {
+      onDelete: "restrict",
+    }),
+    status: varchar("status", { length: 16 }).notNull(),
+    cancelReason: varchar("cancel_reason", { length: 500 }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    grantedBy: uuid("granted_by").references(() => tenantUsers.id, {
+      onDelete: "set null",
+    }),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    idempotencyKey: varchar("idempotency_key", { length: 160 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("daily_access_grants_tenant_key").on(t.tenantId, t.idempotencyKey),
+    uniqueIndex("daily_access_grants_tenant_invoice")
+      .on(t.tenantId, t.invoiceId)
+      .where(sql`${t.invoiceId} IS NOT NULL`),
+    uniqueIndex("daily_access_grants_day_use_once")
+      .on(t.tenantId, t.studentId)
+      .where(sql`${t.kind} = 'day_use'`),
+    index("daily_access_grants_student_idx").on(t.tenantId, t.studentId, t.validOn),
+    check(
+      "daily_access_grants_kind_check",
+      sql`${t.kind} IN ('crossfit_drop_in', 'day_use')`,
+    ),
+    check(
+      "daily_access_grants_status_check",
+      sql`${t.status} IN ('pending', 'active', 'cancelled')`,
+    ),
+    check(
+      "daily_access_grants_shape_check",
+      sql`(
+        (${t.kind} = 'crossfit_drop_in' AND ${t.activityCode} = 'crossfit' AND ${t.invoiceId} IS NOT NULL)
+        OR (${t.kind} = 'day_use' AND ${t.activityCode} = 'musculacao' AND ${t.invoiceId} IS NULL)
+      )`,
+    ),
+    check(
+      "daily_access_grants_cancel_check",
+      sql`(
+        (${t.status} = 'cancelled' AND ${t.cancelReason} IS NOT NULL AND ${t.cancelledAt} IS NOT NULL)
+        OR (${t.status} <> 'cancelled' AND ${t.cancelReason} IS NULL AND ${t.cancelledAt} IS NULL)
+      )`,
+    ),
   ],
 );
 

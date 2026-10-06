@@ -2,7 +2,8 @@
 export const BRAND = {
   name: "Versátil Academia",
   shortName: "Versátil",
-  logoPath: "/versatil-academia-logo.png",
+  logoPath: "/brand/versatil-logo.svg",
+  markPath: "/brand/versatil-mark.svg",
   /** Ícones quadrados para PWA / instalação no celular */
   icon192: "/icon-192.png",
   icon512: "/icon-512.png",

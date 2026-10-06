@@ -1,8 +1,9 @@
-const CACHE = "versatil-static-v2";
+const CACHE = "versatil-static-v3";
 
 const PRECACHE_URLS = [
   "/",
-  "/versatil-academia-logo.png",
+  "/brand/versatil-logo.svg",
+  "/brand/versatil-mark.svg",
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-192.png",

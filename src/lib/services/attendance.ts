@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { accessEvents, students } from "@/lib/db/schema";
-import { formatIsoDateBr, toIsoDateInTz } from "@/lib/dates/br";
+import { toIsoDateInTz } from "@/lib/dates/br";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 
 /** Data civil no fuso da academia (YYYY-MM-DD). */

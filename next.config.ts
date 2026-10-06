@@ -34,6 +34,7 @@ if (process.env.NODE_ENV === "production") {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  outputFileTracingRoot: process.cwd(),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

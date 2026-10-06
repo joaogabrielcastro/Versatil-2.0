@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Versátil</title>
+  <desc id="desc">Monograma V da Versátil Academia</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d92140"/>
+      <stop offset="1" stop-color="#8f1028"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".5" stop-color="#d8dce1"/>
+      <stop offset="1" stop-color="#89919c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M107 112 231 76l91 43-67 43-37 184z" fill="url(#metal)"/>
+  <path d="m231 76 132 48-154 302 9-80 37-184 67-43z" fill="#fff"/>
+  <path d="m218 148 37 14-37 184-51-168z" fill="#b31530"/>
+</svg>

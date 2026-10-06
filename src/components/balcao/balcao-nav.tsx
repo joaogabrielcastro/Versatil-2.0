@@ -171,11 +171,6 @@ export function BalcaoNav({
   tenantSlug?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -214,7 +209,12 @@ export function BalcaoNav({
             aria-label="Fechar menu"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[min(18rem,85vw)] flex-col border-r border-border bg-card shadow-lg">
+          <aside
+            className="absolute inset-y-0 left-0 flex w-[min(18rem,85vw)] flex-col border-r border-border bg-card shadow-lg"
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest("a")) setOpen(false);
+            }}
+          >
             <SidebarBody
               isAdmin={isAdmin}
               tenantSlug={tenantSlug}
