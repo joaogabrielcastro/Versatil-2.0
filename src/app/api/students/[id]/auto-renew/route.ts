@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { STONE_DISABLED_MESSAGE, isStoneEnabled } from "@/lib/payments/stone-feature";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
@@ -54,6 +55,10 @@ export async function PUT(
     body = putSchema.parse(await request.json());
   } catch {
     return jsonError(400, "Informe autoRenew.");
+  }
+  // Desligar sempre pode; ligar o envio ao POS exige a integração ativa.
+  if (body.autoRenew && !isStoneEnabled()) {
+    return jsonError(409, STONE_DISABLED_MESSAGE);
   }
 
   const r = await setAutoRenew(tenantId, id, body.autoRenew);

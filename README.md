@@ -95,9 +95,9 @@ Configure em **Settings → Secrets and variables → Actions**. Sem esses secre
 | Forma | Onde configurar | Observação |
 |-------|-----------------|------------|
 | Manual (dinheiro/Pix/cartão já recebido) | Balcão → Cobrança | Sempre disponível |
-| Stone Connect (maquininha + recorrência) | Configurações → Pagamentos | Partner Program (`ServiceRefererName`); webhook HMAC ou Bearer. Ver INTEGRACOES.md |
+| Stone Connect (maquininha + recorrência) | `STONE_ENABLED=true` + Configurações → Pagamentos | Partner Program (`ServiceRefererName`); webhook HMAC ou Bearer. Ver INTEGRACOES.md |
 
-Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação Stone (POS real / sandbox) é bloqueio externo — testes mockados não a substituem.
+**Lançamento sem Stone:** `STONE_ENABLED` fica desligada por padrão; o balcão registra os pagamentos e as telas/rotas de cobrança no POS ficam ocultas e recusadas. Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação Stone (POS real / sandbox) é bloqueio externo — testes mockados não a substituem.
 
 ## Produção (checklist rápido)
 

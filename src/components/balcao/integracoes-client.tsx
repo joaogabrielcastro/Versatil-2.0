@@ -21,7 +21,13 @@ async function fetchDevices() {
   return (await res.json()) as { items: Device[] };
 }
 
-export function IntegracoesClient({ appUrl }: { appUrl: string }) {
+export function IntegracoesClient({
+  appUrl,
+  stoneEnabled = false,
+}: {
+  appUrl: string;
+  stoneEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["turnstile-devices"], queryFn: fetchDevices });
   const [name, setName] = useState("");
@@ -95,11 +101,10 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
       <div className="rounded-lg border border-border bg-card p-4 text-sm">
         <p className="font-medium text-foreground">Como funciona na prática</p>
         <p className="mt-2 text-muted-foreground">
-          A catraca consulta o Versátil após reconhecer o aluno. Se estiver{" "}
+          A catraca consulta o sistema após reconhecer o aluno. Se estiver{" "}
           <strong className="text-emerald-700">ativo</strong> e em dia, libera a
           entrada. Se estiver <strong className="text-red-700">inadimplente</strong>,
-          bloqueia. Os pagamentos Stone podem ser registrados no balcão hoje; a
-          integração automática via webhook fica preparada abaixo.
+          bloqueia. Pagamentos registrados no balcão liberam o aluno na hora.
         </p>
       </div>
       <div className="grid gap-10 lg:grid-cols-2">
@@ -202,6 +207,7 @@ Body (um deles):
         {err ? <p className="text-sm text-red-600">{err}</p> : null}
       </section>
 
+      {stoneEnabled ? (
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Stone — cobrança automática</h2>
         <p className="text-sm text-muted-foreground">
@@ -233,6 +239,7 @@ o pagamento NÃO é baixado.`}
           Documentação completa: <strong>INTEGRACOES.md</strong> na raiz do projeto.
         </p>
       </section>
+      ) : null}
       </div>
 
       <KioskDevicesSection />

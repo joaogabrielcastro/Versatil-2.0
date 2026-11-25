@@ -39,6 +39,8 @@ const envSchema = z.object({
    * `x-forwarded-for` é recusado. Sem isso o IP do cliente fica "direct".
    */
   CLIENT_IP_HEADER: z.string().min(1).max(64).optional(),
+  /** Liga a integração com a maquininha Stone (cobrança no POS). Padrão: desligada. */
+  STONE_ENABLED: z.enum(["true", "false"]).optional(),
   /** Bearer do contrato interno POST /api/webhooks/stone */
   STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
   /**

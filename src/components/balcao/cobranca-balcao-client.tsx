@@ -70,7 +70,13 @@ type ConflictItem = {
   reason: string;
 };
 
-export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
+export function CobrancaBalcaoClient({
+  isAdmin,
+  stoneEnabled = false,
+}: {
+  isAdmin: boolean;
+  stoneEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["open-invoices"], queryFn: fetchOpen });
   const conflicts = useQuery({
@@ -223,14 +229,22 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
       ) : null}
       <Card>
         <CardContent className="pt-5 text-sm text-muted-foreground">
-          <p>
-            Use <strong className="text-foreground">Registrar pagamento</strong> quando o
-            dinheiro já foi recebido (dinheiro, Pix ou cartão passado na maquininha
-            fora do sistema). Use{" "}
-            <strong className="text-foreground">Cobrar na maquininha</strong> para enviar
-            a fatura ao POS: ela só é baixada quando a Stone confirmar. Não use os dois
-            para a mesma fatura. Alunos com fatura vencida ficam bloqueados na catraca.
-          </p>
+          {stoneEnabled ? (
+            <p>
+              Use <strong className="text-foreground">Registrar pagamento</strong> quando o
+              dinheiro já foi recebido (dinheiro, Pix ou cartão passado na maquininha
+              fora do sistema). Use{" "}
+              <strong className="text-foreground">Cobrar na maquininha</strong> para enviar
+              a fatura ao POS: ela só é baixada quando a Stone confirmar. Não use os dois
+              para a mesma fatura. Alunos com fatura vencida ficam bloqueados na catraca.
+            </p>
+          ) : (
+            <p>
+              Quando o aluno pagar (dinheiro, Pix ou cartão na maquininha), escolha a
+              forma e clique em <strong className="text-foreground">Registrar pagamento</strong>.
+              Alunos com fatura vencida ficam bloqueados na catraca.
+            </p>
+          )}
           {isAdmin ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Button
@@ -340,14 +354,16 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 {block ? (
                   <p className="w-full text-xs text-muted-foreground">{block}</p>
                 ) : null}
-                <StoneChargeButton
-                  invoiceId={inv.invoiceId}
-                  disabledReason={
-                    canSendToPos(pos, finance)
-                      ? null
-                      : block ?? "Esta fatura não pode ser enviada de novo agora."
-                  }
-                />
+                {stoneEnabled ? (
+                  <StoneChargeButton
+                    invoiceId={inv.invoiceId}
+                    disabledReason={
+                      canSendToPos(pos, finance)
+                        ? null
+                        : block ?? "Esta fatura não pode ser enviada de novo agora."
+                    }
+                  />
+                ) : null}
               </div>
             </li>
             );

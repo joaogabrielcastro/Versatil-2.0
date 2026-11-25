@@ -83,6 +83,8 @@ Hardware típico: **IdFace** (`192.168.0.76`) em modo On Line apontando para o P
 
 ## 2. Stone Connect (único gateway)
 
+> **Desligada no lançamento.** Só funciona com `STONE_ENABLED=true` no ambiente. Desligada, o sistema recusa cobrar no POS, ativar envio automático e salvar credenciais; o cron de cobrança fica em pausa. Conciliação e webhook seguem ativos para confirmar cobranças já enviadas.
+
 O Versátil é **Stone-only**. Cobrança no balcão e recorrência enviam a fatura à maquininha (POS). Registro manual (dinheiro/Pix/cartão já recebido) continua em **Balcão → Cobrança**.
 
 ### 2.1 Pedido no POS (contrato neste repositório)

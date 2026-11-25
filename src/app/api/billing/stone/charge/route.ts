@@ -4,6 +4,7 @@ import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { chargeInvoiceOnStone } from "@/lib/services/billing/stone-charge";
+import { STONE_DISABLED_MESSAGE, isStoneEnabled } from "@/lib/payments/stone-feature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
   const session = await getSession();
   if (!session || session.typ !== "tenant" || !session.tid) {
     return jsonError(401, "Não autenticado.");
+  }
+  if (!isStoneEnabled()) {
+    return jsonError(409, STONE_DISABLED_MESSAGE);
   }
   const tenantId = session.tid;
 

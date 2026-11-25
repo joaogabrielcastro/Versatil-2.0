@@ -127,13 +127,19 @@ function NavItems({
 function SidebarBody({
   isAdmin,
   tenantSlug,
+  stoneEnabled,
   onNavigate,
 }: {
   isAdmin: boolean;
   tenantSlug: string;
+  stoneEnabled: boolean;
   onNavigate?: () => void;
 }) {
   const mainLinks = buildLinks(tenantSlug);
+  // Sem a integração Stone não há o que configurar em Pagamentos.
+  const settingsLinks = stoneEnabled
+    ? adminLinks
+    : adminLinks.filter((link) => link.href !== "/balcao/configuracoes/pagamentos");
 
   return (
     <div className="flex h-full flex-col">
@@ -151,7 +157,7 @@ function SidebarBody({
             <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Configurações
             </p>
-            <NavItems links={adminLinks} onNavigate={onNavigate} />
+            <NavItems links={settingsLinks} onNavigate={onNavigate} />
           </div>
         ) : null}
       </nav>
@@ -166,9 +172,11 @@ function SidebarBody({
 export function BalcaoNav({
   isAdmin = false,
   tenantSlug = "",
+  stoneEnabled = false,
 }: {
   isAdmin?: boolean;
   tenantSlug?: string;
+  stoneEnabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -218,6 +226,7 @@ export function BalcaoNav({
             <SidebarBody
               isAdmin={isAdmin}
               tenantSlug={tenantSlug}
+              stoneEnabled={stoneEnabled}
               onNavigate={() => setOpen(false)}
             />
           </aside>
@@ -226,7 +235,7 @@ export function BalcaoNav({
 
       {/* Desktop sidebar */}
       <aside className="balcao-nav fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border bg-card lg:flex lg:flex-col">
-        <SidebarBody isAdmin={isAdmin} tenantSlug={tenantSlug} />
+        <SidebarBody isAdmin={isAdmin} tenantSlug={tenantSlug} stoneEnabled={stoneEnabled} />
       </aside>
     </>
   );

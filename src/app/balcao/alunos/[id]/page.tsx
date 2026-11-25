@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StudentStatusBadge } from "@/components/ui/status-badge";
 import { formatCpf } from "@/lib/labels";
 import { getSession } from "@/lib/auth/session";
+import { isStoneEnabled } from "@/lib/payments/stone-feature";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { effectiveStudentStatusSql } from "@/lib/services/student-effective-status";
@@ -144,6 +145,7 @@ export default async function AlunoDetalhePage({
           <StudentBillingPanel
             studentId={student.id}
             isAdmin={session.role === "tenant_admin"}
+            stoneEnabled={isStoneEnabled()}
           />
         </div>
       </section>

@@ -76,9 +76,11 @@ async function fetchPlans() {
 export function StudentBillingPanel({
   studentId,
   isAdmin = false,
+  stoneEnabled = false,
 }: {
   studentId: string;
   isAdmin?: boolean;
+  stoneEnabled?: boolean;
 }) {
   const qc = useQueryClient();
   const q = useQuery({
@@ -457,7 +459,7 @@ export function StudentBillingPanel({
           onChange={(e) => setNote(e.target.value)}
         />
         <div className="mt-6">
-          <AutoRenewPanel studentId={studentId} />
+          {stoneEnabled ? <AutoRenewPanel studentId={studentId} /> : null}
         </div>
         <h3 className="mt-6 text-sm font-medium">Linha do tempo</h3>
         <ul className="mt-2 max-h-80 space-y-2 overflow-y-auto text-sm">
