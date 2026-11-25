@@ -5,6 +5,7 @@ import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
 import { importJobs } from "@/lib/db/schema";
 import { getQueue } from "@/lib/queues/bull";
+import { IMPORT_JOB_OPTS } from "@/lib/queues/job-options";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
       rows,
     },
     {
+      ...IMPORT_JOB_OPTS,
       jobId: `import:${tenantId}:${job.id}`,
     },
   );

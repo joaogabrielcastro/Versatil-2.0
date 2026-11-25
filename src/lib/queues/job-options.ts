@@ -11,3 +11,13 @@ export const DEFAULT_JOB_OPTS = {
   removeOnComplete: 100,
   removeOnFail: 100,
 };
+
+/**
+ * Importação carrega linhas do CSV (nome, CPF, e-mail, WhatsApp) no Redis.
+ * O resultado fica em import_jobs; o payload some ao concluir e, se falhar,
+ * após 24h (tempo para diagnóstico). LGPD: minimização e retenção limitada.
+ */
+export const IMPORT_JOB_OPTS = {
+  removeOnComplete: true,
+  removeOnFail: { age: 24 * 60 * 60 },
+};
