@@ -12,6 +12,8 @@ type FinancialReport = {
   from: string;
   to: string;
   summary: {
+    billedCents: number;
+    billedCount: number;
     receivedCents: number;
     paidCount: number;
     openCents: number;
@@ -142,7 +144,20 @@ export function FinancialReportClient() {
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-border p-4">
+            <div
+              className="rounded-lg border border-border p-4"
+              title="Faturas com vencimento no período, exceto canceladas."
+            >
+              <p className="text-sm text-muted-foreground">Faturado no período</p>
+              <p className="text-xl font-semibold">{money(q.data!.summary.billedCents)}</p>
+              <p className="text-xs text-muted-foreground">
+                {q.data!.summary.billedCount} fatura(s) com vencimento no período
+              </p>
+            </div>
+            <div
+              className="rounded-lg border border-border p-4"
+              title="Faturas quitadas no período, inclusive atrasadas pagas agora."
+            >
               <p className="text-sm text-muted-foreground">Recebido no período</p>
               <p className="text-xl font-semibold">{money(q.data!.summary.receivedCents)}</p>
               <p className="text-xs text-muted-foreground">
@@ -150,14 +165,14 @@ export function FinancialReportClient() {
               </p>
             </div>
             <div className="rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Em aberto (hoje)</p>
+              <p className="text-sm text-muted-foreground">Em aberto hoje</p>
               <p className="text-xl font-semibold">{money(q.data!.summary.openCents)}</p>
               <p className="text-xs text-muted-foreground">
-                {q.data!.summary.openCount} fatura(s)
+                {q.data!.summary.openCount} fatura(s), a vencer e vencidas
               </p>
             </div>
             <div className="rounded-lg border border-red-200 bg-red-50/50 p-4 dark:border-red-900 dark:bg-red-950/20">
-              <p className="text-sm text-muted-foreground">Vencidas</p>
+              <p className="text-sm text-muted-foreground">Vencidas hoje</p>
               <p className="text-xl font-semibold text-red-700 dark:text-red-400">
                 {money(q.data!.summary.overdueCents)}
               </p>
@@ -165,17 +180,13 @@ export function FinancialReportClient() {
                 {q.data!.summary.overdueCount} fatura(s)
               </p>
             </div>
-            <div className="rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Alunos</p>
-              <p className="text-sm mt-1">
-                <span className="font-medium">{q.data!.summary.studentsActive}</span> ativos ·{" "}
-                <span className="font-medium text-red-600">
-                  {q.data!.summary.studentsDelinquent}
-                </span>{" "}
-                inadimplentes · {q.data!.summary.studentsInactive} inativos
-              </p>
-            </div>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Alunos hoje:{" "}
+            <span className="font-medium text-foreground">{q.data!.summary.studentsActive}</span> ativos ·{" "}
+            <span className="font-medium text-red-700">{q.data!.summary.studentsDelinquent}</span>{" "}
+            inadimplentes · {q.data!.summary.studentsInactive} inativos
+          </p>
 
           <section>
             <div className="flex flex-wrap items-center justify-between gap-2">

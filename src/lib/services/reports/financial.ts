@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import { dueBeforeToday } from "@/lib/billing/due-day-sql";
 import { invoices, students } from "@/lib/db/schema";
 import type { ReportDateRange } from "@/lib/reports/date-range";
@@ -10,6 +10,10 @@ export type FinancialReport = {
   from: string;
   to: string;
   summary: {
+    /** Faturas com vencimento no período, exceto canceladas. */
+    billedCents: number;
+    billedCount: number;
+    /** Faturas quitadas no período (inclui atrasadas pagas agora). */
     receivedCents: number;
     paidCount: number;
     openCents: number;
@@ -73,16 +77,31 @@ export async function buildFinancialReport(
 
     const receivedCents = paidRows.reduce((s, r) => s + r.amountCents, 0);
 
-    const openRows = await tx
+    // Somas no banco: não traz todas as faturas em aberto para a memória.
+    const [openAgg] = await tx
       .select({
-        amountCents: invoices.amountCents,
+        cents: sql<number>`coalesce(sum(${invoices.amountCents}), 0)`,
+        n: sql<number>`count(*)`,
+      })
+      .from(invoices)
+      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.status, "open")));
+    const openCents = Number(openAgg?.cents ?? 0);
+    const openCount = Number(openAgg?.n ?? 0);
+
+    const [billedAgg] = await tx
+      .select({
+        cents: sql<number>`coalesce(sum(${invoices.amountCents}), 0)`,
+        n: sql<number>`count(*)`,
       })
       .from(invoices)
       .where(
-        and(eq(invoices.tenantId, tenantId), eq(invoices.status, "open")),
+        and(
+          eq(invoices.tenantId, tenantId),
+          ne(invoices.status, "void"),
+          gte(invoices.dueAt, range.fromUtc),
+          lt(invoices.dueAt, range.toExclusiveUtc),
+        ),
       );
-
-    const openCents = openRows.reduce((s, r) => s + r.amountCents, 0);
 
     const overdueRows = await tx
       .select({
@@ -109,10 +128,12 @@ export async function buildFinancialReport(
       from: range.from,
       to: range.to,
       summary: {
+        billedCents: Number(billedAgg?.cents ?? 0),
+        billedCount: Number(billedAgg?.n ?? 0),
         receivedCents,
         paidCount: paidRows.length,
         openCents,
-        openCount: openRows.length,
+        openCount,
         overdueCents,
         overdueCount: overdueRows.length,
         studentsActive,
