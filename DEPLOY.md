@@ -70,7 +70,9 @@ O worker (`npm run worker`) grava heartbeat no Redis a cada 10s, com expiração
 
 ## Backup
 
-- Agende `npm run db:backup` diário, fora do disco da aplicação. `BACKUP_KEEP` padrão é 14. Falha do `pg_dump` encerra com código diferente de zero; não apague o backup anterior.
+- Agende `npm run db:backup` diário, fora do disco da aplicação. `BACKUP_KEEP` padrão é 14.
+- `BACKUP_DATABASE_URL` = login dono das tabelas (o mesmo das migrations). Com `versatil_runtime` ou `versatil_jobs` o `pg_dump` falha por causa do RLS.
+- O dump é gravado como `.partial` e só vira `.dump` se o `pg_dump` terminar e o arquivo tiver o cabeçalho `PGDMP`. Falha encerra com código diferente de zero, não deixa arquivo e não apaga backups anteriores. A retenção só conta dumps válidos.
 - Ensaio, em banco vazio e diferente de `DATABASE_URL`:
 
 ```
