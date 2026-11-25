@@ -45,7 +45,14 @@ describe("papel de runtime sem privilégio de plataforma", () => {
       END $$
     `));
     await ddl(() => db.execute(sql`GRANT versatil_app TO versatil_runtime`));
-    await ddl(() => db.execute(sql`GRANT CONNECT ON DATABASE versatil_test TO versatil_runtime`));
+    // Nome do banco varia (local: versatil_test; CI: ci). Usa o banco atual.
+    await ddl(() =>
+      db.execute(sql`
+        DO $$ BEGIN
+          EXECUTE format('GRANT CONNECT ON DATABASE %I TO versatil_runtime', current_database());
+        END $$
+      `),
+    );
     await ddl(() => db.execute(sql`GRANT USAGE ON SCHEMA public, app TO versatil_runtime`));
     await ddl(() => db.execute(sql`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO versatil_runtime`));
     await ddl(() => db.execute(sql`REVOKE ALL ON TABLE platform_admins, cron_runs FROM versatil_runtime`));
