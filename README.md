@@ -8,7 +8,7 @@ Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil
 
 | Camada | Tecnologia |
 |--------|------------|
-| App | Next.js 15 (App Router), React 19, TypeScript |
+| App | Next.js 16 (App Router), React 19, TypeScript |
 | UI | Tailwind CSS 4, Radix Slot, Lucide, TanStack Query |
 | API | Route Handlers + Zod |
 | Auth | JWT (`jose`), cookie de sessão, roles (`super_admin`, `tenant_admin`, `tenant_user`) |
