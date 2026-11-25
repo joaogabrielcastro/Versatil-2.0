@@ -224,11 +224,12 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
       <Card>
         <CardContent className="pt-5 text-sm text-muted-foreground">
           <p>
-            Registre aqui quando o aluno pagar na recepção —{" "}
-            <strong className="text-foreground">dinheiro, Pix ou cartão Stone</strong>.
-            A cobrança recorrente na Stone acontece fora do sistema; após confirmar
-            o pagamento, clique em <strong className="text-foreground">Registrar pagamento</strong>.
-            Alunos com fatura vencida ficam bloqueados na catraca.
+            Use <strong className="text-foreground">Registrar pagamento</strong> quando o
+            dinheiro já foi recebido (dinheiro, Pix ou cartão passado na maquininha
+            fora do sistema). Use{" "}
+            <strong className="text-foreground">Cobrar na maquininha</strong> para enviar
+            a fatura ao POS: ela só é baixada quando a Stone confirmar. Não use os dois
+            para a mesma fatura. Alunos com fatura vencida ficam bloqueados na catraca.
           </p>
           {isAdmin ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
