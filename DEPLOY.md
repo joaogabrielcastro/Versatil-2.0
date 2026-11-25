@@ -62,6 +62,17 @@ Uma academia que falha é registrada e as outras seguem. Cada execução grava u
 
 O worker (`npm run worker`) grava heartbeat no Redis a cada 10s, com expiração de 30s. `processing.worker` é `active`, `absent` ou `stale`. Falha do worker não reinicia a API.
 
+## Primeira academia em produção
+
+```
+NODE_ENV=production SEED_TENANT_SLUG=<slug> SEED_TENANT_NAME="<nome>" \
+SEED_USER_EMAIL=<admin da academia> SEED_USER_PASSWORD=<≥12 caracteres> \
+SEED_PLATFORM_EMAIL=<super admin> SEED_PLATFORM_PASSWORD=<≥12 caracteres> \
+npm run db:seed:prod
+```
+
+Em produção o seed recusa senha ausente, curta ou igual à de demonstração, e não cria alunos fictícios nem o token de catraca de apresentação. `SEED_DEMO_DATA=true` só em ambiente de demonstração.
+
 ## Catraca e Stone
 
 - Catraca: `POST /api/turnstile/v1/access` com `x-tenant-device-token`. Sem HTTP 200 `{open:true}` a porta não abre por este handler. Homologação com equipamento real ainda não foi feita.
