@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { and, count, eq, gte, sql } from "drizzle-orm";
 import { dueBeforeToday } from "@/lib/billing/due-day-sql";
+import { startOfDayBr, startOfMonthBr } from "@/lib/dates/br";
 import { countStudentsByEffectiveStatus } from "@/lib/services/student-effective-status";
 import { AccessFeed } from "@/components/balcao/access-feed";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,9 +44,9 @@ export default async function BalcaoDashboardPage() {
 
   const tenantId = session.tid;
   const now = new Date();
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Dia e mês civis da academia (São Paulo), não do fuso do servidor (UTC no Docker).
+  const startOfDay = startOfDayBr(now);
+  const startOfMonth = startOfMonthBr(now);
 
   const [
     tenant,

@@ -154,3 +154,17 @@ export function normalizeDateBrInput(input: string, withTime = false): string {
   }
   return withTime ? maskDateTimeBrInput(trimmed) : maskDateBrInput(trimmed);
 }
+
+/**
+ * Início do dia civil em São Paulo, como instante UTC.
+ * Brasil sem horário de verão desde 2019: offset fixo -03:00
+ * (o mesmo usado em parseAttendanceDate).
+ */
+export function startOfDayBr(now: Date = new Date()): Date {
+  return new Date(`${toIsoDateInTz(now)}T00:00:00-03:00`);
+}
+
+/** Primeiro instante do mês civil corrente em São Paulo, como instante UTC. */
+export function startOfMonthBr(now: Date = new Date()): Date {
+  return new Date(`${toIsoDateInTz(now).slice(0, 8)}01T00:00:00-03:00`);
+}
