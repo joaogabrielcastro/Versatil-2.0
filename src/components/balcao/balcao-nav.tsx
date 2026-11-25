@@ -32,26 +32,39 @@ type NavLink = {
   icon: LucideIcon;
 };
 
-function buildLinks(tenantSlug: string): NavLink[] {
+type NavGroup = { label: string; links: NavLink[] };
+
+/** Menu em grupos (proposta de identidade): o uso diário fica no topo. */
+function buildGroups(tenantSlug: string): NavGroup[] {
   const terminalHref = tenantSlug
     ? `/imprimir-treino?slug=${encodeURIComponent(tenantSlug)}`
     : "/imprimir-treino";
 
   return [
-    { href: "/balcao", label: "Painel", exact: true, icon: LayoutDashboard },
-    { href: "/balcao/alunos", label: "Alunos", icon: Users },
-    { href: "/balcao/cobranca", label: "Cobrança", icon: CreditCard },
-    { href: "/balcao/presenca", label: "Presença", icon: DoorOpen },
-    { href: "/balcao/treinos", label: "Treinos", icon: Dumbbell },
-    { href: "/balcao/planos", label: "Planos", icon: Wallet },
-    { href: "/balcao/grade", label: "Grade", icon: CalendarDays },
-    { href: "/balcao/estoque", label: "Estoque", icon: Package },
-    { href: "/balcao/relatorios", label: "Relatórios", icon: BarChart3 },
     {
-      href: terminalHref,
-      label: "Terminal",
-      external: true,
-      icon: Monitor,
+      label: "Operação",
+      links: [
+        { href: "/balcao", label: "Painel", exact: true, icon: LayoutDashboard },
+        { href: "/balcao/alunos", label: "Alunos", icon: Users },
+        { href: "/balcao/presenca", label: "Presença", icon: DoorOpen },
+        { href: terminalHref, label: "Terminal", external: true, icon: Monitor },
+      ],
+    },
+    {
+      label: "Financeiro",
+      links: [
+        { href: "/balcao/cobranca", label: "Cobrança", icon: CreditCard },
+        { href: "/balcao/relatorios", label: "Relatórios", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Gestão",
+      links: [
+        { href: "/balcao/planos", label: "Planos", icon: Wallet },
+        { href: "/balcao/grade", label: "Grade", icon: CalendarDays },
+        { href: "/balcao/treinos", label: "Treinos", icon: Dumbbell },
+        { href: "/balcao/estoque", label: "Estoque", icon: Package },
+      ],
     },
   ];
 }
@@ -89,8 +102,9 @@ function NavItems({
         const Icon = link.icon;
         const cls = cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          // Selecionado: fundo neutro + barra vermelha; o vermelho cheio fica para a ação principal.
           active
-            ? "bg-primary text-primary-foreground shadow-sm"
+            ? "bg-muted text-foreground font-semibold shadow-[inset_3px_0_0_var(--primary)]"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         );
 
@@ -127,13 +141,19 @@ function NavItems({
 function SidebarBody({
   isAdmin,
   tenantSlug,
+  stoneEnabled,
   onNavigate,
 }: {
   isAdmin: boolean;
   tenantSlug: string;
+  stoneEnabled: boolean;
   onNavigate?: () => void;
 }) {
-  const mainLinks = buildLinks(tenantSlug);
+  const groups = buildGroups(tenantSlug);
+  // Sem a integração Stone não há o que configurar em Pagamentos.
+  const settingsLinks = stoneEnabled
+    ? adminLinks
+    : adminLinks.filter((link) => link.href !== "/balcao/configuracoes/pagamentos");
 
   return (
     <div className="flex h-full flex-col">
@@ -145,13 +165,16 @@ function SidebarBody({
         className="flex-1 overflow-y-auto px-3 py-4"
         aria-label="Menu do balcão"
       >
-        <NavItems links={mainLinks} onNavigate={onNavigate} />
+        {groups.map((group, i) => (
+          <div key={group.label} className={i === 0 ? undefined : "mt-5"}>
+            <p className="mb-1.5 px-3 text-xs font-medium text-muted-foreground">{group.label}</p>
+            <NavItems links={group.links} onNavigate={onNavigate} />
+          </div>
+        ))}
         {isAdmin ? (
-          <div className="mt-6">
-            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Configurações
-            </p>
-            <NavItems links={adminLinks} onNavigate={onNavigate} />
+          <div className="mt-5">
+            <p className="mb-1.5 px-3 text-xs font-medium text-muted-foreground">Configurações</p>
+            <NavItems links={settingsLinks} onNavigate={onNavigate} />
           </div>
         ) : null}
       </nav>
@@ -166,9 +189,11 @@ function SidebarBody({
 export function BalcaoNav({
   isAdmin = false,
   tenantSlug = "",
+  stoneEnabled = false,
 }: {
   isAdmin?: boolean;
   tenantSlug?: string;
+  stoneEnabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -218,6 +243,7 @@ export function BalcaoNav({
             <SidebarBody
               isAdmin={isAdmin}
               tenantSlug={tenantSlug}
+              stoneEnabled={stoneEnabled}
               onNavigate={() => setOpen(false)}
             />
           </aside>
@@ -226,7 +252,7 @@ export function BalcaoNav({
 
       {/* Desktop sidebar */}
       <aside className="balcao-nav fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border bg-card lg:flex lg:flex-col">
-        <SidebarBody isAdmin={isAdmin} tenantSlug={tenantSlug} />
+        <SidebarBody isAdmin={isAdmin} tenantSlug={tenantSlug} stoneEnabled={stoneEnabled} />
       </aside>
     </>
   );

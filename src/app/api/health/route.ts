@@ -3,6 +3,7 @@ import { latestCronRuns } from "@/lib/cron/record";
 import { PlatformDatabaseNotConfigured } from "@/lib/db/with-tenant";
 import { getEnv } from "@/lib/env";
 import { getRedis } from "@/lib/redis";
+import { sendObservabilityAlert } from "@/lib/observability/alert";
 import { readWorkerLiveness } from "@/lib/workers/heartbeat";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -10,8 +11,44 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const STALE_MS = 36 * 60 * 60 * 1000;
+const WORKER_ALERT_THROTTLE_SECONDS = 15 * 60;
 
-export async function GET() {
+/**
+ * Sem worker, webhooks da Stone e importações ficam parados em silêncio.
+ * O health (consultado pelo orquestrador) avisa no máximo uma vez a cada 15 min.
+ */
+async function alertWorkerDown(worker: "absent" | "stale"): Promise<void> {
+  try {
+    if (!getEnv().OBSERVABILITY_ALERT_WEBHOOK_URL) return;
+    const first = await getRedis().set(
+      "alert:worker_down",
+      worker,
+      "EX",
+      WORKER_ALERT_THROTTLE_SECONDS,
+      "NX",
+    );
+    if (first !== "OK") return;
+    await sendObservabilityAlert({
+      type: "worker.down",
+      severity: "critical",
+      summary:
+        worker === "stale"
+          ? "Worker sem heartbeat recente: webhooks Stone e importações podem estar parados."
+          : "Worker ausente: webhooks Stone e importações não estão sendo processados.",
+      detail: { worker },
+    });
+  } catch {
+    /* alerta nunca derruba o health */
+  }
+}
+
+/** Detalhe de erro dos crons só para quem tem o segredo do cron. */
+function canSeeDetails(request: Request): boolean {
+  const secret = getEnv().CRON_SECRET;
+  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+export async function GET(request: Request) {
   try {
     getEnv();
   } catch {
@@ -67,7 +104,14 @@ export async function GET() {
     }
   }
 
+  if (redis && worker !== "active") {
+    await alertWorkerDown(worker);
+  }
+
   const cronFresh = crons.length > 0 && crons.every((row) => row.ok && !row.stale);
+  if (!canSeeDetails(request)) {
+    crons = crons.map((row) => ({ ...row, error: row.error ? "detalhe restrito" : null }));
+  }
   const ok = database && redis && platformDatabase;
   return NextResponse.json(
     {

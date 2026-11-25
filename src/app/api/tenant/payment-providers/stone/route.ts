@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { STONE_DISABLED_MESSAGE, isStoneEnabled } from "@/lib/payments/stone-feature";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
@@ -63,6 +64,9 @@ export async function PUT(request: Request) {
     body = putSchema.parse(await request.json());
   } catch {
     return jsonError(400, "Payload inválido.");
+  }
+  if (!isStoneEnabled()) {
+    return jsonError(409, STONE_DISABLED_MESSAGE);
   }
 
   const credentials: Partial<StoneConnectCredentials> = {};

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -60,12 +60,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
     }
 
-    const updates: Partial<{
-      role: "tenant_admin" | "tenant_user";
-      passwordHash: string;
-    }> = {};
+    const updates: {
+      role?: "tenant_admin" | "tenant_user";
+      passwordHash?: string;
+      sessionVersion?: ReturnType<typeof sql>;
+    } = {};
     if (body.role) updates.role = body.role;
     if (body.password) updates.passwordHash = await hashPassword(body.password);
+    // Troca de perfil ou senha encerra as sessões já emitidas para o usuário.
+    if (body.password || (body.role && body.role !== existing.role)) {
+      updates.sessionVersion = sql`${tenantUsers.sessionVersion} + 1`;
+    }
 
     const [row] = await tx
       .update(tenantUsers)

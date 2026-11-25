@@ -12,6 +12,12 @@ import { seedDemoData } from "./seed-demo";
 
 async function main() {
   getEnv();
+  if (process.env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {
+    console.error(
+      "Dados de demonstração (alunos fictícios e token de catraca conhecido) não são criados em produção. Use SEED_DEMO_DATA=true só em ambiente de demonstração.",
+    );
+    process.exit(1);
+  }
   const slug = process.env.SEED_TENANT_SLUG ?? "demo";
   const [tenant] = await withBypassRlsTransaction(async (tx) => {
     return tx
@@ -27,7 +33,9 @@ async function main() {
   await seedDemoData(tenant.id);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

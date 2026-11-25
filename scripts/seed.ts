@@ -13,17 +13,42 @@ import { getEnv } from "../src/lib/env";
 import { DEFAULT_WORKOUT_PRESETS } from "../src/lib/workouts/presets";
 import { seedDemoData } from "./seed-demo";
 
+const DEMO_PASSWORD = "demo12345678";
+
+/**
+ * Em produção: senhas obrigatórias (≥ 12, diferentes da senha de demonstração)
+ * e nenhum dado fictício, a menos que SEED_DEMO_DATA=true (ambiente de demo).
+ */
+function seedConfig() {
+  const production = process.env.NODE_ENV === "production";
+  const demoData = production ? process.env.SEED_DEMO_DATA === "true" : true;
+  const userPassword = process.env.SEED_USER_PASSWORD ?? (production ? "" : DEMO_PASSWORD);
+  const platformPassword =
+    process.env.SEED_PLATFORM_PASSWORD ?? (production ? "" : DEMO_PASSWORD);
+  if (production) {
+    for (const [name, value] of [
+      ["SEED_USER_PASSWORD", userPassword],
+      ["SEED_PLATFORM_PASSWORD", platformPassword],
+    ] as const) {
+      if (value.length < 12 || value === DEMO_PASSWORD) {
+        throw new Error(
+          `${name} é obrigatória em produção (mínimo 12 caracteres, diferente da senha de demonstração).`,
+        );
+      }
+    }
+  }
+  return { userPassword, platformPassword, demoData };
+}
+
 async function main() {
   getEnv();
+  const { userPassword, platformPassword, demoData } = seedConfig();
   const tenantSlug = process.env.SEED_TENANT_SLUG ?? "demo";
   const tenantName = process.env.SEED_TENANT_NAME ?? "Versátil Academia";
   const userEmail = (process.env.SEED_USER_EMAIL ?? "recep@demo.com").toLowerCase();
-  const userPassword = process.env.SEED_USER_PASSWORD ?? "demo12345678";
   const platformEmail = (
     process.env.SEED_PLATFORM_EMAIL ?? "admin@plataforma.com"
   ).toLowerCase();
-  const platformPassword =
-    process.env.SEED_PLATFORM_PASSWORD ?? "demo12345678";
 
   const tenantId = await withBypassRlsTransaction(async (tx) => {
     const [existingTenant] = await tx
@@ -135,10 +160,16 @@ async function main() {
   });
 
   // Após commit — seedDemoData abre transações próprias e precisa ver planos já gravados
-  await seedDemoData(tenantId);
+  if (demoData) {
+    await seedDemoData(tenantId);
+  } else {
+    console.log("Produção: dados de demonstração não foram criados (SEED_DEMO_DATA=true para criar).");
+  }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exit(1);
+  });

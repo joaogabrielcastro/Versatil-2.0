@@ -217,7 +217,7 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const items = q.data ?? [];
@@ -426,9 +426,9 @@ export function PlanosManageClient({ isAdmin }: { isAdmin: boolean }) {
                         {p.category ? ` · ${p.category}` : ""}
                         {" · "}
                         {p.active ? (
-                          <span className="text-emerald-700">ativo</span>
+                          <span className="text-ok">ativo</span>
                         ) : (
-                          <span className="text-red-700">inativo</span>
+                          <span className="text-stop">inativo</span>
                         )}
                       </p>
                     </div>

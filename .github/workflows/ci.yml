@@ -35,6 +35,7 @@ jobs:
       STONE_WEBHOOK_SECRET: "ci-stone-webhook-16"
       WEBHOOK_INGEST_SECRET: "ci-webhook-ingest16"
       CRON_SECRET: "ci-cron-secret"
+      PLATFORM_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,3 +50,9 @@ jobs:
       - name: Unit and isolation tests
         run: npm test
       - run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: E2E (fluxos no navegador)
+        run: npm run test:e2e
+        env:
+          E2E_SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci

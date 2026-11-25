@@ -63,9 +63,9 @@ export function StoneChargeButton({
       {disabledReason ? (
         <p className="max-w-xs text-right text-xs text-muted-foreground">{disabledReason}</p>
       ) : null}
-      {err ? <p className="text-xs text-red-600">{err}</p> : null}
+      {err ? <p className="text-xs text-stop">{err}</p> : null}
       {sent ? (
-        <p className="text-xs text-green-700">
+        <p className="text-xs text-ok">
           Enviado à maquininha. Conclua o pagamento no POS — a fatura é baixada
           automaticamente quando a Stone confirmar.
         </p>

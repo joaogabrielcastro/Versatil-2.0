@@ -8,7 +8,7 @@ Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil
 
 | Camada | Tecnologia |
 |--------|------------|
-| App | Next.js 15 (App Router), React 19, TypeScript |
+| App | Next.js 16 (App Router), React 19, TypeScript |
 | UI | Tailwind CSS 4, Radix Slot, Lucide, TanStack Query |
 | API | Route Handlers + Zod |
 | Auth | JWT (`jose`), cookie de sessão, roles (`super_admin`, `tenant_admin`, `tenant_user`) |
@@ -21,7 +21,7 @@ Identidade visual: vermelho `#c41e3a`, fundo `#f4f4f5`, logo em `public/versatil
 ## Início rápido
 
 1. Instale [Docker Desktop](https://www.docker.com/products/docker-desktop/) e inicie-o.
-2. Copie [`.env.example`](./.env.example) para `.env` e ajuste os segredos (`JWT_SECRET`, `NEXTAUTH_SECRET`, `KIOSK_ACCESS_SECRET`, `CRON_SECRET`). Em produção, defina também `PAYMENT_ENCRYPTION_KEY`.
+2. Copie [`.env.example`](./.env.example) para `.env` e ajuste os segredos (`JWT_SECRET`, `NEXTAUTH_SECRET`, `CRON_SECRET`). Em produção, `PAYMENT_ENCRYPTION_KEY` é obrigatória, e `MIGRATION_DATABASE_URL` / `BACKUP_DATABASE_URL` usam o login dono das tabelas (ver [DEPLOY.md](./DEPLOY.md)).
 3. Suba a infra e prepare a base:
 
 ```bash
@@ -48,6 +48,7 @@ npm run worker   # filas BullMQ (obrigatório para webhooks/import)
 | **[INTEGRACOES.md](./INTEGRACOES.md)** | Catraca e webhooks |
 | **[DEMO.md](./DEMO.md)** | Roteiro de apresentação |
 | **[QUESTIONARIO-CLIENTE.md](./QUESTIONARIO-CLIENTE.md)** | Levantamento com o cliente |
+| **[LGPD.md](./LGPD.md)** | Direitos do titular, o que está implementado e o que falta |
 
 ## Módulos principais
 
@@ -70,20 +71,22 @@ npm run worker   # filas BullMQ (obrigatório para webhooks/import)
 | `npm run db:backup` | Dump Postgres (`pg_dump`; ou `BACKUP_VIA_DOCKER=1`) |
 | `npm run worker` | Processador de filas |
 | `npm test` | Testes unitários (Vitest) |
+| `npm run test:e2e` | Fluxos no navegador (Playwright): login, cadastro, matrícula e pagamento, perfis, isolamento entre academias, celular. Requer `npm run build`, Postgres e Redis |
 | `npm run typecheck` | TypeScript |
 | `npm run build` | Build de produção |
 
 ## CI e crons
 
-GitHub Actions em `.github/workflows/ci.yml` — lint, typecheck, **test**, build.
+GitHub Actions em `.github/workflows/ci.yml` — lint, typecheck, **test**, build e **E2E**.
 
-Crons diários (secrets obrigatórios no repositório: **`APP_BASE_URL`** + **`CRON_SECRET`**):
+Crons (secrets obrigatórios no repositório: **`APP_BASE_URL`** + **`CRON_SECRET`**):
 
 | Workflow | Horário (UTC) | Endpoint |
 |----------|---------------|----------|
 | `cron-billing.yml` | 05:00 | `/api/cron/generate-invoices` |
 | `cron-charge.yml` | 06:00 | `/api/cron/charge-open-invoices` |
 | `cron-recalculate.yml` | 06:15 | `/api/cron/recalculate-students` |
+| `cron-reconcile-stone.yml` | a cada 15 min | `/api/cron/reconcile-stone` |
 
 Configure em **Settings → Secrets and variables → Actions**. Sem esses secrets, os workflows falham com `BASE`/`SECRET` vazios.
 
@@ -92,16 +95,17 @@ Configure em **Settings → Secrets and variables → Actions**. Sem esses secre
 | Forma | Onde configurar | Observação |
 |-------|-----------------|------------|
 | Manual (dinheiro/Pix/cartão já recebido) | Balcão → Cobrança | Sempre disponível |
-| Stone Connect (maquininha + recorrência) | Configurações → Pagamentos | Partner Program (`ServiceRefererName`); webhook HMAC ou Bearer. Ver INTEGRACOES.md |
+| Stone Connect (maquininha + recorrência) | `STONE_ENABLED=true` + Configurações → Pagamentos | Partner Program (`ServiceRefererName`); webhook HMAC ou Bearer. Ver INTEGRACOES.md |
 
-Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação Stone (POS real / sandbox) é bloqueio externo — testes mockados não a substituem.
+**Lançamento sem Stone:** `STONE_ENABLED` fica desligada por padrão; o balcão registra os pagamentos e as telas/rotas de cobrança no POS ficam ocultas e recusadas. Credenciais por tenant ficam cifradas (`PAYMENT_ENCRYPTION_KEY`). Homologação Stone (POS real / sandbox) é bloqueio externo — testes mockados não a substituem.
 
 ## Produção (checklist rápido)
 
 - [ ] `.env` com segredos fortes e `APP_URL` pública
-- [ ] `KIOSK_ACCESS_SECRET`, `CRON_SECRET`, `PAYMENT_ENCRYPTION_KEY`
+- [ ] `CRON_SECRET`, `PAYMENT_ENCRYPTION_KEY`, `MIGRATION_DATABASE_URL`, `BACKUP_DATABASE_URL`, `PLATFORM_DATABASE_URL`
 - [ ] Migrações aplicadas (`npm run start` ou `pilot:setup`)
 - [ ] Worker rodando (`npm run worker` ou Compose profile `pilot`)
 - [ ] Secrets GitHub `APP_BASE_URL` + `CRON_SECRET` para os crons
-- [ ] Backup agendado: `npm run db:backup`
+- [ ] Backup agendado (`npm run db:backup`) e restauração ensaiada em banco separado (DEPLOY.md)
+- [ ] Termos, política de privacidade e LGPD ([LGPD.md](./LGPD.md))
 - [ ] (Opcional) Credenciais Stone Connect por academia + webhook

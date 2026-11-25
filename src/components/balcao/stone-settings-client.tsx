@@ -71,7 +71,7 @@ export function StoneSettingsClient() {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const s = q.data!;
@@ -87,7 +87,7 @@ export function StoneSettingsClient() {
       <div className="flex items-center gap-2 text-sm">
         <span
           className={`inline-block h-2 w-2 rounded-full ${
-            s.enabled ? "bg-green-500" : "bg-gray-400"
+            s.enabled ? "bg-ok" : "bg-gray-400"
           }`}
         />
         <span className="text-muted-foreground">
@@ -164,7 +164,7 @@ export function StoneSettingsClient() {
       </div>
 
       {msg ? (
-        <p className={`text-sm ${msg.includes("Erro") ? "text-red-600" : "text-green-700"}`}>
+        <p className={`text-sm ${msg.includes("Erro") ? "text-stop" : "text-ok"}`}>
           {msg}
         </p>
       ) : null}

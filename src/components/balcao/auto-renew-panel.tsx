@@ -67,7 +67,7 @@ export function AutoRenewPanel({ studentId }: { studentId: string }) {
         <div className="mt-2 space-y-2 text-sm">
           <p className="text-xs text-muted-foreground">
             Status:{" "}
-            <span className={s.autoRenew ? "text-green-700" : "text-muted-foreground"}>
+            <span className={s.autoRenew ? "text-ok" : "text-muted-foreground"}>
               {s.autoRenew ? "ativa" : "desativada"}
             </span>
             . Envia a fatura em aberto ao POS. Não renova o contrato nem repete cobrança com resultado desconhecido.
@@ -81,8 +81,8 @@ export function AutoRenewPanel({ studentId }: { studentId: string }) {
           >
             {s.autoRenew ? "Desativar envio ao POS" : "Ativar envio ao POS"}
           </Button>
-          {err ? <p className="text-xs text-red-600">{err}</p> : null}
-          {msg ? <p className="text-xs text-green-700">{msg}</p> : null}
+          {err ? <p className="text-xs text-stop">{err}</p> : null}
+          {msg ? <p className="text-xs text-ok">{msg}</p> : null}
         </div>
       )}
     </div>

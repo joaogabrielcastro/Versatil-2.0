@@ -146,6 +146,7 @@ export async function seedDemoData(tenantId: string): Promise<void> {
       deviceId = existing.id;
       return;
     }
+    // O token de apresentação é único no sistema: só a primeira academia demo o recebe.
     const tokenHash = hashToken("demo-catraca-token-apresentacao");
     const [d] = await tx
       .insert(turnstileDevices)
@@ -154,8 +155,13 @@ export async function seedDemoData(tenantId: string): Promise<void> {
         name: "Catraca entrada principal",
         tokenHash,
       })
+      .onConflictDoNothing({ target: turnstileDevices.tokenHash })
       .returning({ id: turnstileDevices.id });
-    deviceId = d!.id;
+    if (!d) {
+      console.log("Demo: token de catraca de apresentação já usado por outra academia; dispositivo não criado.");
+      return;
+    }
+    deviceId = d.id;
     console.log("Demo: dispositivo catraca criado (token: demo-catraca-token-apresentacao)");
   });
 

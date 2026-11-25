@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike } from "drizzle-orm";
+import { and, asc, eq, ilike, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/json";
 import { students } from "@/lib/db/schema";
@@ -55,6 +55,7 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(students.tenantId, resolved.tenantId),
+          isNull(students.anonymizedAt),
           ilike(students.fullName, `%${q}%`),
         ),
       )

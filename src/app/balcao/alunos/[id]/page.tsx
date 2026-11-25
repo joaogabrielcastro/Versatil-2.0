@@ -6,11 +6,13 @@ import { StudentAttendancePanel } from "@/components/balcao/student-attendance-p
 import { StudentBillingPanel } from "@/components/balcao/student-billing-panel";
 import { StudentSubscriptionsPanel } from "@/components/balcao/student-subscriptions-panel";
 import { StudentWorkoutsPanel } from "@/components/balcao/student-workouts-panel";
+import { StudentPrivacyPanel } from "@/components/balcao/student-privacy-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StudentStatusBadge } from "@/components/ui/status-badge";
 import { formatCpf } from "@/lib/labels";
 import { getSession } from "@/lib/auth/session";
+import { isStoneEnabled } from "@/lib/payments/stone-feature";
 import { students } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
 import { effectiveStudentStatusSql } from "@/lib/services/student-effective-status";
@@ -40,6 +42,7 @@ export default async function AlunoDetalhePage({
         whatsapp: students.whatsapp,
         birthDate: students.birthDate,
         facialVectorRef: students.facialVectorRef,
+        anonymizedAt: students.anonymizedAt,
         status: effectiveStudentStatusSql(),
       })
       .from(students)
@@ -69,7 +72,7 @@ export default async function AlunoDetalhePage({
         <StudentStatusBadge status={student.status} />
       </PageHeader>
       {student.renewalChargeMissing ? (
-        <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <p className="mt-4 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm text-warn">
           A renovação já começou, mas a cobrança deste período não foi gerada.
           Isso não é inadimplência. Em Cobrança, use Gerar faturas do período.
           A catraca permanece fechada até essa cobrança existir.
@@ -139,9 +142,25 @@ export default async function AlunoDetalhePage({
           Faturas, liquidação manual na recepção e linha do tempo.
         </p>
         <div className="mt-4">
-          <StudentBillingPanel studentId={student.id} />
+          <StudentBillingPanel
+            studentId={student.id}
+            isAdmin={session.role === "tenant_admin"}
+            stoneEnabled={isStoneEnabled()}
+          />
         </div>
       </section>
+
+      {session.role === "tenant_admin" ? (
+        <section id="student-privacidade" className="mt-8 scroll-mt-36 pb-4">
+          <h2 className="text-lg font-medium">Privacidade (LGPD)</h2>
+          <div className="mt-4">
+            <StudentPrivacyPanel
+              studentId={student.id}
+              anonymized={Boolean(student.anonymizedAt)}
+            />
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

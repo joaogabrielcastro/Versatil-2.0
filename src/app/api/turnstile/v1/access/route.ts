@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accessEvents, students, turnstileDevices } from "@/lib/db/schema";
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         tenantId: turnstileDevices.tenantId,
       })
       .from(turnstileDevices)
-      .where(eq(turnstileDevices.tokenHash, tokenHash))
+      .where(and(eq(turnstileDevices.tokenHash, tokenHash), isNull(turnstileDevices.revokedAt)))
       .limit(1);
     return d ?? null;
   });

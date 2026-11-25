@@ -14,21 +14,21 @@ export const sessionPayloadSchema = z
   .superRefine((val, ctx) => {
     if (val.typ === "tenant" && val.tid === null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Sessão de academia exige tenant (tid).",
         path: ["tid"],
       });
     }
     if (val.typ === "platform" && val.tid !== null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Sessão de plataforma não deve carregar tenant.",
         path: ["tid"],
       });
     }
     if (val.typ === "platform" && val.role !== "super_admin") {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Perfil de plataforma inválido.",
         path: ["role"],
       });

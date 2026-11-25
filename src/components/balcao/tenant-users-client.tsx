@@ -186,15 +186,15 @@ export function TenantUsersClient({ currentUserId }: { currentUserId: string }) 
         </form>
       </section>
 
-      {msg ? <p className="text-sm text-emerald-700">{msg}</p> : null}
-      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      {msg ? <p className="text-sm text-ok">{msg}</p> : null}
+      {err ? <p className="text-sm text-stop">{err}</p> : null}
 
       <section>
         <h2 className="text-sm font-medium">Equipe da academia</h2>
         {q.isLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
         ) : q.isError ? (
-          <p className="mt-2 text-sm text-red-600">{(q.error as Error).message}</p>
+          <p className="mt-2 text-sm text-stop">{(q.error as Error).message}</p>
         ) : (
           <div className="mt-3 overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[640px] text-left text-sm">

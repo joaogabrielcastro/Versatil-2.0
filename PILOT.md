@@ -21,7 +21,7 @@ No `.env` local (desenvolvimento):
 Copia [`.env.example`](./.env.example) para `.env` e ajusta segredos:
 
 - `JWT_SECRET`, `NEXTAUTH_SECRET` ≥ 32 caracteres
-- `KIOSK_ACCESS_SECRET` ≥ 16 (token do terminal de treino; **obrigatório em produção**)
+- Terminal de treino: token por dispositivo em **Integrações → Terminais** (o antigo `KIOSK_ACCESS_SECRET` não autoriza mais nada)
 - `CRON_SECRET` ≥ 8 (para jobs de fatura/recálculo)
 
 Depois:
@@ -105,7 +105,7 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 | Modelos de treino | `/balcao/treinos` (pré-fixados, imprimíveis) |
 | Presença diária | `/balcao/presenca` e ficha do aluno (automático via catraca / facial) |
 | Relatórios | `/balcao/relatorios` — financeiro + presença por período, export CSV |
-| Terminal do aluno | `/imprimir-treino?slug=demo&token=…` — cupom 80mm (requer `KIOSK_ACCESS_SECRET`) |
+| Terminal do aluno | `/imprimir-treino?slug=demo` — cupom 80mm (token do terminal em Integrações → Terminais) |
 | Import CSV | `/balcao/importar` + worker |
 | Webhook Stone | `POST /api/webhooks/stone` — único caminho que liquida fatura |
 | Catraca | `POST /api/turnstile/v1/access` — ver INTEGRACOES.md |
@@ -115,7 +115,7 @@ Invoke-WebRequest -Uri "$base/api/cron/recalculate-students" -Headers @{ Authori
 
 Garante `SKIP_MIGRATIONS` **não** definido como `true` no processo do Next se quiseres migrações no arranque (`scripts/pre-start.mjs`). O worker deve usar `SKIP_MIGRATIONS=true` (já no Compose).
 
-Define em produção: `KIOSK_ACCESS_SECRET`, `CRON_SECRET`, e (recomendado) `PAYMENT_ENCRYPTION_KEY`.
+Define em produção: `CRON_SECRET` e `PAYMENT_ENCRYPTION_KEY` (obrigatória; o processo não sobe sem ela). Credenciais de banco: ver DEPLOY.md.
 
 No GitHub: secrets **`APP_BASE_URL`** + **`CRON_SECRET`** — os workflows de fatura e recálculo correm diariamente (e também via *Run workflow*).
 
@@ -135,10 +135,12 @@ BACKUP_VIA_DOCKER=1 npm run db:backup
 
 Ficheiros em `./backups/versatil-*.dump` (gitignored). Retenção: `BACKUP_KEEP` (default 14).
 
-Restaurar exemplo:
+Restaurar — **nunca** sobre o banco em uso. Ensaie num banco vazio e separado:
 
 ```bash
-pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" backups/versatil-YYYYMMDD….dump
+CONFIRM_RESTORE=yes RESTORE_DATABASE_URL=postgresql://…/ensaio npm run db:restore -- backups/versatil-YYYYMMDD….dump
 ```
+
+O script recusa se o destino for igual a `DATABASE_URL`. Procedimento completo em DEPLOY.md.
 
 No Coolify/VPS, agenda o mesmo comando no cron do host (ex. diário 03:00) e copia os dumps para armazenamento externo.

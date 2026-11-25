@@ -126,7 +126,7 @@ export default function AlunosPage() {
             {query.isLoading ? (
               <TableSkeleton rows={4} cols={1} />
             ) : query.isError ? (
-              <p className="text-sm text-red-600">{(query.error as Error).message}</p>
+              <p className="text-sm text-stop">{(query.error as Error).message}</p>
             ) : items.length === 0 ? (
               <EmptyState
                 icon={Users}
@@ -169,7 +169,7 @@ export default function AlunosPage() {
                   <TableSkeleton rows={6} cols={3} />
                 ) : query.isError ? (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-red-600">
+                    <td colSpan={3} className="px-3 py-6 text-stop">
                       {(query.error as Error).message}
                     </td>
                   </tr>
@@ -196,7 +196,7 @@ export default function AlunosPage() {
                     >
                       <td className="px-3 py-2.5">
                         <Link
-                          className="font-medium text-primary underline-offset-4 hover:underline"
+                          className="font-medium text-foreground underline-offset-4 hover:underline"
                           href={`/balcao/alunos/${r.id}`}
                         >
                           {r.fullName}

@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { findOverlappingSubscription } from "@/lib/services/billing/subscription-overlap";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -11,6 +13,12 @@ import { suggestedSubscriptionEnd } from "@/lib/billing/term-end";
 import { createFirstSubscriptionInvoice } from "@/lib/services/billing/subscription-invoice";
 
 export const dynamic = "force-dynamic";
+
+class OverlapError extends Error {
+  constructor(readonly planName: string) {
+    super("subscription_overlap");
+  }
+}
 
 const createSchema = z.object({
   planId: z.string().uuid(),
@@ -95,24 +103,26 @@ export async function POST(
     return jsonError(400, "Payload inválido.");
   }
 
-  const startsAt = new Date(body.startsAt);
+  const startsAt = parseApiDate(body.startsAt);
   if (Number.isNaN(startsAt.getTime())) {
     return jsonError(400, "startsAt inválido.");
   }
   const endsAt =
-    body.endsAt && body.endsAt.length > 0 ? new Date(body.endsAt) : null;
+    body.endsAt && body.endsAt.length > 0 ? parseApiDate(body.endsAt) : null;
   if (endsAt && Number.isNaN(endsAt.getTime())) {
     return jsonError(400, "endsAt inválido.");
   }
 
   try {
     const [sub, plan] = await withTenantTransaction(tenantId, async (tx) => {
+      // Trava o aluno: duas matrículas simultâneas não passam juntas pela checagem.
       const [stu] = await tx
-        .select({ id: students.id })
+        .select({ id: students.id, anonymizedAt: students.anonymizedAt })
         .from(students)
         .where(and(eq(students.id, studentId), eq(students.tenantId, tenantId)))
-        .limit(1);
-      if (!stu) {
+        .limit(1)
+        .for("update");
+      if (!stu || stu.anonymizedAt) {
         throw new Error("no_student");
       }
       const [pl] = await tx
@@ -122,6 +132,7 @@ export async function POST(
           billingInterval: plans.billingInterval,
           kind: plans.kind,
           termMonths: plans.termMonths,
+          category: plans.category,
         })
         .from(plans)
         .where(and(eq(plans.id, body.planId), eq(plans.tenantId, tenantId)))
@@ -138,6 +149,16 @@ export async function POST(
       const resolvedEnds =
         endsAt ??
         suggestedSubscriptionEnd(startsAt, pl.billingInterval, pl.termMonths);
+      const overlap = await findOverlappingSubscription(tx, {
+        tenantId,
+        studentId,
+        planId: pl.id,
+        category: pl.category,
+        startsAt,
+      });
+      if (overlap) {
+        throw new OverlapError(overlap.planName);
+      }
       const [row] = await tx
         .insert(studentSubscriptions)
         .values({
@@ -184,6 +205,12 @@ export async function POST(
 
     return NextResponse.json({ subscription: sub }, { status: 201 });
   } catch (e) {
+    if (e instanceof OverlapError) {
+      return jsonError(
+        409,
+        `O aluno já tem matrícula vigente nesta modalidade (${e.planName}). Para mudar de plano use "Trocar plano"; para estender, "Renovar".`,
+      );
+    }
     if (e instanceof Error && e.message === "no_student") {
       return jsonError(404, "Aluno não encontrado.");
     }

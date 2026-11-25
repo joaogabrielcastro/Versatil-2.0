@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -72,7 +73,7 @@ export async function PATCH(
     body.birthDate === undefined
       ? undefined
       : body.birthDate && body.birthDate.length > 0
-        ? new Date(body.birthDate)
+        ? parseApiDate(body.birthDate)
         : null;
   if (birthDate && Number.isNaN(birthDate.getTime())) {
     return jsonError(400, "Data de nascimento inválida.");
@@ -87,12 +88,15 @@ export async function PATCH(
 
   const updated = await withTenantTransaction(tenantId, async (tx) => {
     const [existing] = await tx
-      .select({ id: students.id })
+      .select({ id: students.id, anonymizedAt: students.anonymizedAt })
       .from(students)
       .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .limit(1);
     if (!existing) {
       return null;
+    }
+    if (existing.anonymizedAt) {
+      return "anonymized" as const;
     }
 
     const patch: {
@@ -124,6 +128,9 @@ export async function PATCH(
   if (!updated) {
     return jsonError(404, "Aluno não encontrado.");
   }
+  if (updated === "anonymized") {
+    return jsonError(409, "Aluno anonimizado: os dados pessoais não podem ser restaurados.");
+  }
 
   await recalculateStudentStatus(tenantId, id);
 
@@ -133,7 +140,8 @@ export async function PATCH(
     action: "student.updated",
     entity: "student",
     entityId: id,
-    payload: body,
+    // LGPD: registra quais campos mudaram, não os valores pessoais.
+    payload: { fields: Object.keys(body) },
   });
 
   return NextResponse.json({ student: updated });

@@ -104,7 +104,7 @@ export default function AdminPage() {
         {q.isLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
         ) : q.isError ? (
-          <p className="mt-2 text-sm text-red-600">{(q.error as Error).message}</p>
+          <p className="mt-2 text-sm text-stop">{(q.error as Error).message}</p>
         ) : (
           <ul className="mt-2 space-y-2 text-sm">
             {q.data!.items.map((t) => (

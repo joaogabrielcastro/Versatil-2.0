@@ -1,6 +1,7 @@
 import "dotenv/config";
 import type { Job } from "bullmq";
 import Redis from "ioredis";
+import { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { log } from "@/lib/observability/logger";
 import { QUEUE_NAMES } from "@/lib/queues/names";
@@ -34,7 +35,7 @@ registerInstrumentedWorker(
       log.error("bull.payload_invalid", {
         queue: QUEUE_NAMES.imports,
         jobId: String(job.id),
-        issues: parsed.error.flatten(),
+        issues: z.flattenError(parsed.error),
       });
       throw new Error("invalid_import_payload");
     }
@@ -51,7 +52,7 @@ registerInstrumentedWorker(
       log.error("bull.payload_invalid", {
         queue: QUEUE_NAMES.turnstileSync,
         jobId: String(job.id),
-        issues: parsed.error.flatten(),
+        issues: z.flattenError(parsed.error),
       });
       throw new Error("invalid_turnstile_payload");
     }
@@ -68,7 +69,7 @@ registerInstrumentedWorker(
       log.error("bull.payload_invalid", {
         queue: QUEUE_NAMES.webhooks,
         jobId: String(job.id),
-        issues: parsed.error.flatten(),
+        issues: z.flattenError(parsed.error),
       });
       throw new Error("invalid_webhook_payload");
     }

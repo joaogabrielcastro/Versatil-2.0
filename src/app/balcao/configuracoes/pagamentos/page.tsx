@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { StoneSettingsClient } from "@/components/balcao/stone-settings-client";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/session";
+import { isStoneEnabled } from "@/lib/payments/stone-feature";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,16 @@ export default async function PagamentosPage() {
         de dinheiro, Pix ou cartão já recebido continua em Cobrança.
       </p>
 
+      {!isStoneEnabled() ? (
+        <section className="mt-8 rounded-lg border p-6 text-sm text-muted-foreground">
+          <h2 className="text-lg font-medium text-foreground">Integração com a maquininha desativada</h2>
+          <p className="mt-2">
+            Por enquanto os pagamentos são registrados no balcão, em Cobrança (dinheiro, Pix
+            ou cartão passado na maquininha). A integração direta com a Stone será ligada
+            quando a chave da maquininha estiver disponível.
+          </p>
+        </section>
+      ) : (
       <section className="mt-8 rounded-lg border p-6">
         <h2 className="text-lg font-medium">Stone Connect — maquininha (POS)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -37,6 +48,7 @@ export default async function PagamentosPage() {
           <StoneSettingsClient />
         </div>
       </section>
+      )}
     </main>
   );
 }

@@ -70,7 +70,13 @@ type ConflictItem = {
   reason: string;
 };
 
-export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
+export function CobrancaBalcaoClient({
+  isAdmin,
+  stoneEnabled = false,
+}: {
+  isAdmin: boolean;
+  stoneEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["open-invoices"], queryFn: fetchOpen });
   const conflicts = useQuery({
@@ -158,7 +164,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
     );
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const items = q.data?.items ?? [];
@@ -223,13 +229,22 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
       ) : null}
       <Card>
         <CardContent className="pt-5 text-sm text-muted-foreground">
-          <p>
-            Registre aqui quando o aluno pagar na recepção —{" "}
-            <strong className="text-foreground">dinheiro, Pix ou cartão Stone</strong>.
-            A cobrança recorrente na Stone acontece fora do sistema; após confirmar
-            o pagamento, clique em <strong className="text-foreground">Registrar pagamento</strong>.
-            Alunos com fatura vencida ficam bloqueados na catraca.
-          </p>
+          {stoneEnabled ? (
+            <p>
+              Use <strong className="text-foreground">Registrar pagamento</strong> quando o
+              dinheiro já foi recebido (dinheiro, Pix ou cartão passado na maquininha
+              fora do sistema). Use{" "}
+              <strong className="text-foreground">Cobrar na maquininha</strong> para enviar
+              a fatura ao POS: ela só é baixada quando a Stone confirmar. Não use os dois
+              para a mesma fatura. Alunos com fatura vencida ficam bloqueados na catraca.
+            </p>
+          ) : (
+            <p>
+              Quando o aluno pagar (dinheiro, Pix ou cartão na maquininha), escolha a
+              forma e clique em <strong className="text-foreground">Registrar pagamento</strong>.
+              Alunos com fatura vencida ficam bloqueados na catraca.
+            </p>
+          )}
           {isAdmin ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Button
@@ -247,7 +262,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
       </Card>
 
       {blockingOverdue.length > 0 ? (
-        <p className="text-sm font-medium text-red-700">
+        <p className="text-sm font-medium text-stop">
           {blockingOverdue.length} fatura(s) vencida(s) bloqueiam a catraca.
         </p>
       ) : null}
@@ -289,7 +304,7 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
               <div>
                 <Link
                   href={`/balcao/alunos/${inv.studentId}`}
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   {inv.studentName}
                 </Link>
@@ -339,14 +354,16 @@ export function CobrancaBalcaoClient({ isAdmin }: { isAdmin: boolean }) {
                 {block ? (
                   <p className="w-full text-xs text-muted-foreground">{block}</p>
                 ) : null}
-                <StoneChargeButton
-                  invoiceId={inv.invoiceId}
-                  disabledReason={
-                    canSendToPos(pos, finance)
-                      ? null
-                      : block ?? "Esta fatura não pode ser enviada de novo agora."
-                  }
-                />
+                {stoneEnabled ? (
+                  <StoneChargeButton
+                    invoiceId={inv.invoiceId}
+                    disabledReason={
+                      canSendToPos(pos, finance)
+                        ? null
+                        : block ?? "Esta fatura não pode ser enviada de novo agora."
+                    }
+                  />
+                ) : null}
               </div>
             </li>
             );

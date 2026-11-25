@@ -20,14 +20,14 @@ export const stoneWebhookBodySchema = z
     if (data.type !== "invoice.paid") return;
     if (data.amountCents === undefined) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["amountCents"],
         message: "invoice.paid exige amountCents.",
       });
     }
     if (!data.currency) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["currency"],
         message: "invoice.paid exige currency.",
       });

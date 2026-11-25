@@ -14,7 +14,9 @@ import { clientIp } from "@/lib/http/client-ip";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  email: z.string().email(),
+  // Só precisa bater com o e-mail salvo; validar formato aqui poderia trancar
+  // fora contas criadas antes de uma regra mais estrita (ex.: Zod 4).
+  email: z.string().trim().min(3).max(255),
   password: z.string().min(1),
 });
 

@@ -39,6 +39,8 @@ const envSchema = z.object({
    * `x-forwarded-for` é recusado. Sem isso o IP do cliente fica "direct".
    */
   CLIENT_IP_HEADER: z.string().min(1).max(64).optional(),
+  /** Liga a integração com a maquininha Stone (cobrança no POS). Padrão: desligada. */
+  STONE_ENABLED: z.enum(["true", "false"]).optional(),
   /** Bearer do contrato interno POST /api/webhooks/stone */
   STONE_WEBHOOK_SECRET: z.string().min(16).optional(),
   /**
@@ -84,7 +86,7 @@ export type Env = z.infer<typeof envSchema>;
 function readEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const msg = parsed.error.flatten().fieldErrors;
+    const msg = z.flattenError(parsed.error).fieldErrors;
     console.error("Variáveis de ambiente inválidas:", msg);
     throw new Error("Falha na validação de ambiente (Zod). Verifique o .env.");
   }

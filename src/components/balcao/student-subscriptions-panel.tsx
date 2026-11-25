@@ -184,7 +184,7 @@ export function StudentSubscriptionsPanel({
   }
   if (qp.isError || qs.isError) {
     return (
-      <p className="text-sm text-red-600">
+      <p className="text-sm text-stop">
         {((qp.error ?? qs.error) as Error).message}
       </p>
     );
@@ -276,7 +276,7 @@ export function StudentSubscriptionsPanel({
               </span>
             ) : null}
           </label>
-          {dateError ? <p className="text-sm text-red-600">{dateError}</p> : null}
+          {dateError ? <p className="text-sm text-stop">{dateError}</p> : null}
           <Button type="submit" size="sm" disabled={busy || subscriptionPlans.length === 0}>
             Associar plano
           </Button>

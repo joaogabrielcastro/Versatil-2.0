@@ -118,6 +118,9 @@ export async function createFirstSubscriptionInvoice(
   await recalculateStudentStatus(tenantId, studentId);
 }
 
+/** Dois anos de mensalidades: cobre qualquer atraso real do cron; acima disso é dado errado. */
+export const MAX_NEW_INVOICES_PER_SUBSCRIPTION_RUN = 24;
+
 export async function generateSubscriptionInvoicesForTenant(
   tenantId: string,
   now = new Date(),
@@ -125,7 +128,12 @@ export async function generateSubscriptionInvoicesForTenant(
   let created = 0;
   const studentIds = new Set<string>();
   const reviews: Array<{ subscriptionId: string; periodKey: string; reason: string }> = [];
-  const cap = 200;
+  /**
+   * Trava por assinatura, não por academia: uma academia grande gera todas as
+   * faturas do dia; uma assinatura que pediria muitas de uma vez (data de início
+   * errada, importação antiga) vai para revisão em vez de virar cobrança vencida.
+   */
+  const perSubscriptionCap = MAX_NEW_INVOICES_PER_SUBSCRIPTION_RUN;
 
   await withTenantTransaction(tenantId, async (tx) => {
     const subs = await tx
@@ -143,8 +151,21 @@ export async function generateSubscriptionInvoicesForTenant(
       );
 
     for (const { subscription: sub } of subs) {
-      if (created >= cap) break;
       if (sub.startsAt.getTime() > now.getTime()) continue;
+      let createdForSub = 0;
+      let capNoted = false;
+      const reachedCap = (periodKey: string) => {
+        if (createdForSub < perSubscriptionCap) return false;
+        if (!capNoted) {
+          capNoted = true;
+          reviews.push({
+            subscriptionId: sub.id,
+            periodKey: `${periodKey}:cap`,
+            reason: `Mais de ${perSubscriptionCap} faturas a gerar de uma vez para esta assinatura. Confira as datas do contrato; as demais saem nas próximas execuções.`,
+          });
+        }
+        return true;
+      };
       const interval = sub.billingInterval;
       if (!isBillingInterval(interval)) {
         reviews.push({
@@ -177,7 +198,7 @@ export async function generateSubscriptionInvoicesForTenant(
       const cut = sub.cancelEffectiveAt ? toIsoDateInTz(sub.cancelEffectiveAt) : null;
 
       for (const period of periods) {
-        if (created >= cap) break;
+        if (reachedCap(period.idempotencyKey)) break;
         const dueDay = toIsoDateInTz(period.dueAt);
         if (cut && dueDay >= cut) continue;
         const covering = terms
@@ -230,13 +251,14 @@ export async function generateSubscriptionInvoicesForTenant(
         });
         if (result.created) {
           created++;
+          createdForSub++;
           studentIds.add(sub.studentId);
         }
       }
 
       if (sub.cancelRequestedAt) continue;
       for (const term of terms) {
-        if (created >= cap) break;
+        if (capNoted) break;
         if (term.source !== "renewal") continue;
         const renewal = renewalChargePeriods(
           {
@@ -257,7 +279,7 @@ export async function generateSubscriptionInvoicesForTenant(
           continue;
         }
         for (const period of renewal.periods) {
-          if (created >= cap) break;
+          if (reachedCap(period.idempotencyKey)) break;
           const dueDay = toIsoDateInTz(period.dueAt);
           if (cut && dueDay >= cut) continue;
           const result = await createInvoiceIfAbsent(tx, {
@@ -271,6 +293,7 @@ export async function generateSubscriptionInvoicesForTenant(
           });
           if (result.created) {
             created++;
+            createdForSub++;
             studentIds.add(sub.studentId);
           }
         }

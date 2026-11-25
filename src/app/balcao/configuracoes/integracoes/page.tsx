@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isStoneEnabled } from "@/lib/payments/stone-feature";
 import { redirect } from "next/navigation";
 import { IntegracoesClient } from "@/components/balcao/integracoes-client";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ export default async function IntegracoesPage() {
         credenciais).
       </p>
       <div className="mt-8">
-        <IntegracoesClient appUrl={appUrl} />
+        <IntegracoesClient appUrl={appUrl} stoneEnabled={isStoneEnabled()} />
       </div>
     </main>
   );

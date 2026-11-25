@@ -7,15 +7,21 @@ import { AUTH_COOKIE_NAME } from "./constants";
 import { verifySessionToken } from "./jwt";
 import type { SessionPayload } from "./types";
 
-async function storedSessionVersion(session: SessionPayload): Promise<number | null> {
+type StoredSession = {
+  sv: number;
+  role: SessionPayload["role"];
+};
+
+/** Versão e perfil atuais no banco. O perfil do token não é confiável após mudança. */
+async function storedSession(session: SessionPayload): Promise<StoredSession | null> {
   if (session.typ === "tenant" && session.tid) {
     return withTenantTransaction(session.tid, async (tx) => {
       const [row] = await tx
-        .select({ sv: tenantUsers.sessionVersion })
+        .select({ sv: tenantUsers.sessionVersion, role: tenantUsers.role })
         .from(tenantUsers)
         .where(eq(tenantUsers.id, session.sub))
         .limit(1);
-      return row?.sv ?? null;
+      return row ?? null;
     });
   }
   if (session.typ === "platform") {
@@ -25,7 +31,7 @@ async function storedSessionVersion(session: SessionPayload): Promise<number | n
         .from(platformAdmins)
         .where(eq(platformAdmins.id, session.sub))
         .limit(1);
-      return row?.sv ?? null;
+      return row ? { sv: row.sv, role: "super_admin" as const } : null;
     });
   }
   return null;
@@ -57,9 +63,9 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const session = await verifySessionToken(token, getEnv().JWT_SECRET);
-    const current = await storedSessionVersion(session);
-    if (current === null || current !== session.sv) return null;
-    return session;
+    const current = await storedSession(session);
+    if (current === null || current.sv !== session.sv) return null;
+    return { ...session, role: current.role };
   } catch {
     return null;
   }

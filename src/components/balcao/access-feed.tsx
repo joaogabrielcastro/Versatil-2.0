@@ -71,7 +71,7 @@ export function AccessFeed() {
   }, []);
 
   if (error) {
-    return <p className="text-sm text-red-600">{error}</p>;
+    return <p className="text-sm text-stop">{error}</p>;
   }
 
   if (events.length === 0) {
@@ -97,9 +97,9 @@ export function AccessFeed() {
             </span>
             {" — "}
             {e.allowed ? (
-              <span className="text-emerald-700">Liberado</span>
+              <span className="text-ok">Liberado</span>
             ) : (
-              <span className="text-red-700">Bloqueado</span>
+              <span className="text-stop">Bloqueado</span>
             )}
             {e.reason ? (
               <span className="text-muted-foreground">

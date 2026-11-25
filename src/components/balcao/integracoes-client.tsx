@@ -21,7 +21,13 @@ async function fetchDevices() {
   return (await res.json()) as { items: Device[] };
 }
 
-export function IntegracoesClient({ appUrl }: { appUrl: string }) {
+export function IntegracoesClient({
+  appUrl,
+  stoneEnabled = false,
+}: {
+  appUrl: string;
+  stoneEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["turnstile-devices"], queryFn: fetchDevices });
   const [name, setName] = useState("");
@@ -57,6 +63,37 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
     }
   }
 
+  async function changeDevice(device: Device, action: "revoke" | "rotate") {
+    const question =
+      action === "revoke"
+        ? `Revogar "${device.name}"? A catraca deixa de consultar o sistema com este token na hora.`
+        : `Gerar token novo para "${device.name}"? O token antigo para de funcionar.`;
+    if (!window.confirm(question)) return;
+    setBusy(true);
+    setErr(null);
+    setNewToken(null);
+    try {
+      const res = await fetch(`/api/turnstile/devices/${device.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deviceToken?: string;
+      };
+      if (!res.ok) {
+        setErr(j.error ?? "Não foi possível alterar o dispositivo.");
+        return;
+      }
+      if (j.deviceToken) setNewToken(j.deviceToken);
+      await qc.invalidateQueries({ queryKey: ["turnstile-devices"] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const base = appUrl.replace(/\/$/, "");
 
   return (
@@ -64,11 +101,10 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
       <div className="rounded-lg border border-border bg-card p-4 text-sm">
         <p className="font-medium text-foreground">Como funciona na prática</p>
         <p className="mt-2 text-muted-foreground">
-          A catraca consulta o Versátil após reconhecer o aluno. Se estiver{" "}
-          <strong className="text-emerald-700">ativo</strong> e em dia, libera a
-          entrada. Se estiver <strong className="text-red-700">inadimplente</strong>,
-          bloqueia. Os pagamentos Stone podem ser registrados no balcão hoje; a
-          integração automática via webhook fica preparada abaixo.
+          A catraca consulta o sistema após reconhecer o aluno. Se estiver{" "}
+          <strong className="text-ok">ativo</strong> e em dia, libera a
+          entrada. Se estiver <strong className="text-stop">inadimplente</strong>,
+          bloqueia. Pagamentos registrados no balcão liberam o aluno na hora.
         </p>
       </div>
       <div className="grid gap-10 lg:grid-cols-2">
@@ -87,7 +123,8 @@ Body (um deles):
   { "studentId": "<uuid>" }
 
 200 → { "open": true }
-403 → { "open": false, "message": "Aluno inadimplente." }`}
+403 → { "open": false, "message": "Acesso não autorizado." }
+       (o motivo fica no histórico de acessos, não na resposta)`}
         </pre>
         <p className="text-xs text-muted-foreground">
           Preferência na academia: enviar o <code className="text-foreground">studentCode</code>{" "}
@@ -98,18 +135,51 @@ Body (um deles):
         {q.isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : q.isError ? (
-          <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+          <p className="text-sm text-stop">{(q.error as Error).message}</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {(q.data?.items ?? []).length === 0 ? (
               <li className="text-muted-foreground">Nenhum dispositivo.</li>
             ) : (
               q.data!.items.map((d) => (
-                <li key={d.id} className="rounded-md border border-border p-2">
-                  <div className="font-medium">{d.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    ID {d.id.slice(0, 8)}… · Criado{" "}
-                    {formatDateTimeBr(d.createdAt)}
+                <li
+                  key={d.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2"
+                >
+                  <div>
+                    <div className="font-medium">
+                      {d.name}
+                      {d.revokedAt ? (
+                        <span className="ml-2 text-xs font-normal text-stop">Revogado</span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      ID {d.id.slice(0, 8)}… · Criado {formatDateTimeBr(d.createdAt)}
+                      {d.lastSeenAt ? ` · Último uso ${formatDateTimeBr(d.lastSeenAt)}` : ""}
+                      {d.revokedAt ? ` · Revogado ${formatDateTimeBr(d.revokedAt)}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void changeDevice(d, "rotate")}
+                    >
+                      {d.revokedAt ? "Reativar com token novo" : "Gerar token novo"}
+                    </Button>
+                    {!d.revokedAt ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void changeDevice(d, "revoke")}
+                      >
+                        Revogar
+                      </Button>
+                    ) : null}
                   </div>
                 </li>
               ))
@@ -129,14 +199,15 @@ Body (um deles):
           </Button>
         </form>
         {newToken ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <div className="rounded-md border border-warn/40 bg-warn-soft p-3 text-sm text-warn">
             <p className="font-medium">Token (copie agora — não será exibido de novo):</p>
             <code className="mt-1 block break-all text-xs">{newToken}</code>
           </div>
         ) : null}
-        {err ? <p className="text-sm text-red-600">{err}</p> : null}
+        {err ? <p className="text-sm text-stop">{err}</p> : null}
       </section>
 
+      {stoneEnabled ? (
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Stone — cobrança automática</h2>
         <p className="text-sm text-muted-foreground">
@@ -152,9 +223,12 @@ Body (B): {
   "eventId": "id-unico",
   "type": "invoice.paid",
   "invoiceId": "<uuid da fatura>",
-  "stoneChargeId": "opcional",
-  "amountCents": 9900
-}`}
+  "stoneChargeId": "<id da cobrança na Stone>",
+  "amountCents": 9900,
+  "currency": "BRL"
+}
+Sem stoneChargeId, valor e moeda iguais aos da fatura,
+o pagamento NÃO é baixado.`}
         </pre>
         <p className="text-xs text-muted-foreground">
           Evento <code className="text-foreground">invoice.payment_failed</code>{" "}
@@ -165,6 +239,7 @@ Body (B): {
           Documentação completa: <strong>INTEGRACOES.md</strong> na raiz do projeto.
         </p>
       </section>
+      ) : null}
       </div>
 
       <KioskDevicesSection />
@@ -252,7 +327,7 @@ function KioskDevicesSection() {
       {q.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : q.isError ? (
-        <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+        <p className="text-sm text-stop">{(q.error as Error).message}</p>
       ) : (
         <ul className="space-y-2 text-sm">
           {(q.data?.items ?? []).length === 0 ? (
@@ -313,12 +388,12 @@ function KioskDevicesSection() {
         </Button>
       </form>
       {newToken ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+        <div className="rounded-md border border-warn/40 bg-warn-soft p-3 text-sm text-warn">
           <p className="font-medium">Token (copie agora — não será exibido de novo):</p>
           <code className="mt-1 block break-all text-xs">{newToken}</code>
         </div>
       ) : null}
-      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      {err ? <p className="text-sm text-stop">{err}</p> : null}
     </section>
   );
 }

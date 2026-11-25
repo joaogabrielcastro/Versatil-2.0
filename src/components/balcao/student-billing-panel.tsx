@@ -73,7 +73,15 @@ async function fetchPlans() {
   return body.items;
 }
 
-export function StudentBillingPanel({ studentId }: { studentId: string }) {
+export function StudentBillingPanel({
+  studentId,
+  isAdmin = false,
+  stoneEnabled = false,
+}: {
+  studentId: string;
+  isAdmin?: boolean;
+  stoneEnabled?: boolean;
+}) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["billing", studentId],
@@ -209,11 +217,50 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
     }
   }
 
+  async function correct(
+    id: string,
+    action: "void" | "reverse-payment",
+  ) {
+    const question =
+      action === "void"
+        ? "Cancelar esta fatura? Ela deixa de ser cobrada. Informe o motivo:"
+        : "Estornar este pagamento? A fatura volta a ficar em aberto. Informe o motivo:";
+    const reason = window.prompt(question)?.trim();
+    if (!reason) return;
+    setBusy(true);
+    setErr(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/invoices/${id}/${action}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        setErr(
+          await readApiError(
+            res,
+            action === "void"
+              ? "Não foi possível cancelar a fatura."
+              : "Não foi possível estornar o pagamento.",
+          ),
+        );
+        return;
+      }
+      setSuccess(action === "void" ? "Fatura cancelada." : "Pagamento estornado.");
+      await qc.invalidateQueries({ queryKey: ["billing", studentId] });
+      await qc.invalidateQueries({ queryKey: ["open-invoices"] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (q.isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const data = q.data!;
@@ -272,6 +319,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
             </div>
           );
         })()}
+        {isAdmin ? (
         <form
           onSubmit={(e) => void createInvoice(e)}
           className="mt-2 flex flex-col gap-2"
@@ -285,11 +333,16 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
             Vencimento
             <BrDateInput withTime value={due} onChange={setDue} required />
           </label>
-          {dueError ? <p className="text-sm text-red-600">{dueError}</p> : null}
+          {dueError ? <p className="text-sm text-stop">{dueError}</p> : null}
           <Button type="submit" size="sm" disabled={busy || !due}>
             Criar fatura em aberto
           </Button>
         </form>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Fatura de valor livre só pelo administrador.
+          </p>
+        )}
 
         <h3 className="mt-6 text-sm font-medium">Faturas</h3>
         <ul className="mt-2 space-y-2 text-sm">
@@ -338,19 +391,45 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
                     <p className="mt-1 text-xs text-muted-foreground">{block}</p>
                   ) : null}
                 </div>
-                {inv.status === "open" ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="default"
-                    disabled={busy || !canSettle}
-                    onClick={() =>
-                      void settle(inv.id, inv.amountCents, inv.currency)
-                    }
-                  >
-                    Registrar pagamento
-                  </Button>
-                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {inv.status === "open" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      disabled={busy || !canSettle}
+                      onClick={() =>
+                        void settle(inv.id, inv.amountCents, inv.currency)
+                      }
+                    >
+                      Registrar pagamento
+                    </Button>
+                  ) : null}
+                  {isAdmin && inv.status === "open" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy || pos === "pending" || pos === "unknown"}
+                      onClick={() => void correct(inv.id, "void")}
+                    >
+                      Cancelar fatura
+                    </Button>
+                  ) : null}
+                  {isAdmin &&
+                  inv.status === "paid" &&
+                  inv.settlementSource === "manual_reception" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void correct(inv.id, "reverse-payment")}
+                    >
+                      Estornar pagamento
+                    </Button>
+                  ) : null}
+                </div>
               </li>
               );
             })
@@ -380,7 +459,7 @@ export function StudentBillingPanel({ studentId }: { studentId: string }) {
           onChange={(e) => setNote(e.target.value)}
         />
         <div className="mt-6">
-          <AutoRenewPanel studentId={studentId} />
+          {stoneEnabled ? <AutoRenewPanel studentId={studentId} /> : null}
         </div>
         <h3 className="mt-6 text-sm font-medium">Linha do tempo</h3>
         <ul className="mt-2 max-h-80 space-y-2 overflow-y-auto text-sm">
@@ -418,6 +497,7 @@ function TimelineDetail({
     lines.push(`Forma: ${manualPaymentLabel(p.paymentMethod)}`);
   }
   if (typeof p.note === "string" && p.note) lines.push(String(p.note));
+  if (typeof p.reason === "string" && p.reason) lines.push(`Motivo: ${p.reason}`);
   if (lines.length === 0 && type === "note") return null;
   if (lines.length === 0) return null;
   return (

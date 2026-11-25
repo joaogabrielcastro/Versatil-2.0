@@ -1,6 +1,6 @@
 # Implantação — checklist
 
-Não rode estas migrations no banco de produção sem revisar. O `npm start` aplica o que estiver em `drizzle/` se `SKIP_MIGRATIONS` não for `true`.
+Não rode estas migrations no banco de produção sem revisar. O `npm start` (e o `CMD` do Dockerfile) aplica o que estiver em `drizzle/` se `SKIP_MIGRATIONS` não for `true`, usando `MIGRATION_DATABASE_URL` (login dono das tabelas). Sem essa variável ele tenta `DATABASE_URL`, que em produção é o runtime e falha por falta de permissão — o container não sobe.
 
 Termo `source = migration`: o preço copiado do plano vale só a partir de `valid_from` (a data da migration, em `0016`). Ciclos anteriores sem termo próprio vão para `billing_reviews` e não são cobrados. Uma fatura antiga não define o preço dos outros ciclos.
 
@@ -25,7 +25,7 @@ Login da aplicação, sem senha neste arquivo. Quem executa é o login das migra
 
 O script cria `versatil_runtime` e `versatil_jobs` (`NOSUPERUSER`, `NOBYPASSRLS`), concede `versatil_app` ao runtime e `versatil_platform` ao jobs, e revoga plataforma do runtime. A `0018` entrega ao grupo `versatil_platform` uso do schema `app`, execução das funções e DML nas tabelas existentes. Objetos futuros criados pelo mesmo login herdam esse privilégio. Um dump com `--no-acl` não recria papéis globais nem os GRANT. Em servidor novo, restaure e rode este script de novo com o login dono dos objetos.
 
-`DATABASE_URL` = `versatil_runtime`. `PLATFORM_DATABASE_URL` = `versatil_jobs`. Sem a segunda variável, cron e bypass respondem 503 com a mensagem `PLATFORM_DATABASE_URL ausente` e não usam o login da aplicação.
+`DATABASE_URL` = `versatil_runtime`. `PLATFORM_DATABASE_URL` = `versatil_jobs`. `MIGRATION_DATABASE_URL` e `BACKUP_DATABASE_URL` = login dono das tabelas (o que aplicou as migrations). Nunca use o dono como `DATABASE_URL`. Sem a segunda variável, cron e bypass respondem 503 com a mensagem `PLATFORM_DATABASE_URL ausente` e não usam o login da aplicação.
 
 Prova, conectado como `versatil_runtime`:
 
@@ -62,6 +62,17 @@ Uma academia que falha é registrada e as outras seguem. Cada execução grava u
 
 O worker (`npm run worker`) grava heartbeat no Redis a cada 10s, com expiração de 30s. `processing.worker` é `active`, `absent` ou `stale`. Falha do worker não reinicia a API.
 
+## Primeira academia em produção
+
+```
+NODE_ENV=production SEED_TENANT_SLUG=<slug> SEED_TENANT_NAME="<nome>" \
+SEED_USER_EMAIL=<admin da academia> SEED_USER_PASSWORD=<≥12 caracteres> \
+SEED_PLATFORM_EMAIL=<super admin> SEED_PLATFORM_PASSWORD=<≥12 caracteres> \
+npm run db:seed:prod
+```
+
+Em produção o seed recusa senha ausente, curta ou igual à de demonstração, e não cria alunos fictícios nem o token de catraca de apresentação. `SEED_DEMO_DATA=true` só em ambiente de demonstração.
+
 ## Catraca e Stone
 
 - Catraca: `POST /api/turnstile/v1/access` com `x-tenant-device-token`. Sem HTTP 200 `{open:true}` a porta não abre por este handler. Homologação com equipamento real ainda não foi feita.
@@ -70,7 +81,9 @@ O worker (`npm run worker`) grava heartbeat no Redis a cada 10s, com expiração
 
 ## Backup
 
-- Agende `npm run db:backup` diário, fora do disco da aplicação. `BACKUP_KEEP` padrão é 14. Falha do `pg_dump` encerra com código diferente de zero; não apague o backup anterior.
+- Agende `npm run db:backup` diário, fora do disco da aplicação. `BACKUP_KEEP` padrão é 14.
+- `BACKUP_DATABASE_URL` = login dono das tabelas (o mesmo das migrations). Com `versatil_runtime` ou `versatil_jobs` o `pg_dump` falha por causa do RLS.
+- O dump é gravado como `.partial` e só vira `.dump` se o `pg_dump` terminar e o arquivo tiver o cabeçalho `PGDMP`. Falha encerra com código diferente de zero, não deixa arquivo e não apaga backups anteriores. A retenção só conta dumps válidos.
 - Ensaio, em banco vazio e diferente de `DATABASE_URL`:
 
 ```

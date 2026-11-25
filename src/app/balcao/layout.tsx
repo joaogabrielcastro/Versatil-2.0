@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { BalcaoNav } from "@/components/balcao/balcao-nav";
 import { getSession } from "@/lib/auth/session";
+import { isStoneEnabled } from "@/lib/payments/stone-feature";
 import { tenants } from "@/lib/db/schema";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
 
@@ -31,7 +32,7 @@ export default async function BalcaoLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <BalcaoNav isAdmin={isAdmin} tenantSlug={tenantSlug} />
+      <BalcaoNav isAdmin={isAdmin} tenantSlug={tenantSlug} stoneEnabled={isStoneEnabled()} />
       <div className="min-h-screen lg:pl-60">
         <div className="mx-auto w-full max-w-[1600px]">{children}</div>
       </div>
