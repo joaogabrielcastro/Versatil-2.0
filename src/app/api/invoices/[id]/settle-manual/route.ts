@@ -11,7 +11,9 @@ import { recalculateStudentStatus } from "@/lib/services/student-status";
 export const dynamic = "force-dynamic";
 
 const settleSchema = z.object({
-  paymentMethod: z.enum(MANUAL_PAYMENT_METHODS).optional(),
+  paymentMethod: z.enum(MANUAL_PAYMENT_METHODS, {
+    errorMap: () => ({ message: "Informe a forma de pagamento (dinheiro, Pix ou cartão)." }),
+  }),
   note: z.string().max(500).optional(),
 });
 
@@ -30,19 +32,18 @@ export async function POST(
     return jsonError(400, "ID de fatura inválido.");
   }
 
-  let body: z.infer<typeof settleSchema>;
-  try {
-    body = settleSchema.parse(await request.json().catch(() => ({})));
-  } catch {
-    return jsonError(400, "Payload inválido.");
+  const parsed = settleSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) {
+    return jsonError(400, parsed.error.issues[0]?.message ?? "Payload inválido.");
   }
+  const body = parsed.data;
 
   const result = await withTenantTransaction(tenantId, async (tx) =>
     manualProvider.settleManual!({
       tx,
       tenantId,
       invoiceId,
-      paymentMethod: body.paymentMethod ?? null,
+      paymentMethod: body.paymentMethod,
       note: body.note ?? null,
       actorUserId: session.sub,
     }),
@@ -71,7 +72,7 @@ export async function POST(
       entity: "invoice",
       entityId: invoiceId,
       payload: {
-        paymentMethod: body.paymentMethod ?? null,
+        paymentMethod: body.paymentMethod,
         note: body.note ?? null,
       },
     });

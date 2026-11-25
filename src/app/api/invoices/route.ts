@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   invoiceTimelineEvents,
   invoices,
+  plans,
   students,
 } from "@/lib/db/schema";
 import { withTenantTransaction } from "@/lib/db/with-tenant";
@@ -41,6 +42,14 @@ export async function POST(request: Request) {
     return jsonError(400, "Payload inválido.");
   }
 
+  // Recepção lança só taxas da tabela, pelo valor cadastrado. Valor livre
+  // (purpose manual ou sem plano) é decisão financeira do administrador.
+  if (session.role !== "tenant_admin" && (body.purpose !== "fee" || !body.planId)) {
+    return jsonError(
+      403,
+      "Fatura de valor livre só pode ser criada pelo administrador. Use as taxas da tabela.",
+    );
+  }
   const dueAt = new Date(body.dueAt);
   if (Number.isNaN(dueAt.getTime())) {
     return jsonError(400, "dueAt inválido.");
@@ -85,6 +94,16 @@ export async function POST(request: Request) {
       let accessEffect: "block" | "none" | null = null;
       if (body.purpose === "fee" && body.planId) {
         accessEffect = await feeAccessEffectForPlan(tx, tenantId, body.planId);
+        if (session.role !== "tenant_admin") {
+          const [fee] = await tx
+            .select({ priceCents: plans.priceCents })
+            .from(plans)
+            .where(and(eq(plans.id, body.planId), eq(plans.tenantId, tenantId)))
+            .limit(1);
+          if (!fee || fee.priceCents !== body.amountCents) {
+            throw new Error("fee_price_mismatch");
+          }
+        }
       }
 
       const inserted = await tx
@@ -178,6 +197,9 @@ export async function POST(request: Request) {
   } catch (e) {
     if (e instanceof Error && e.message === "student_not_found") {
       return jsonError(404, "Aluno não encontrado.");
+    }
+    if (e instanceof Error && e.message === "fee_price_mismatch") {
+      return jsonError(403, "A taxa deve ser lançada pelo valor da tabela.");
     }
     if (e instanceof Error && e.message === "fee_plan_required") {
       return jsonError(400, "A taxa precisa ser um cadastro de taxa desta academia.");

@@ -139,7 +139,10 @@ export default async function AlunoDetalhePage({
           Faturas, liquidação manual na recepção e linha do tempo.
         </p>
         <div className="mt-4">
-          <StudentBillingPanel studentId={student.id} />
+          <StudentBillingPanel
+            studentId={student.id}
+            isAdmin={session.role === "tenant_admin"}
+          />
         </div>
       </section>
     </main>
