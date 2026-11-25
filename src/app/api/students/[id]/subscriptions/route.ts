@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { findOverlappingSubscription } from "@/lib/services/billing/subscription-overlap";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit/log";
@@ -11,6 +12,12 @@ import { suggestedSubscriptionEnd } from "@/lib/billing/term-end";
 import { createFirstSubscriptionInvoice } from "@/lib/services/billing/subscription-invoice";
 
 export const dynamic = "force-dynamic";
+
+class OverlapError extends Error {
+  constructor(readonly planName: string) {
+    super("subscription_overlap");
+  }
+}
 
 const createSchema = z.object({
   planId: z.string().uuid(),
@@ -107,11 +114,13 @@ export async function POST(
 
   try {
     const [sub, plan] = await withTenantTransaction(tenantId, async (tx) => {
+      // Trava o aluno: duas matrículas simultâneas não passam juntas pela checagem.
       const [stu] = await tx
         .select({ id: students.id })
         .from(students)
         .where(and(eq(students.id, studentId), eq(students.tenantId, tenantId)))
-        .limit(1);
+        .limit(1)
+        .for("update");
       if (!stu) {
         throw new Error("no_student");
       }
@@ -122,6 +131,7 @@ export async function POST(
           billingInterval: plans.billingInterval,
           kind: plans.kind,
           termMonths: plans.termMonths,
+          category: plans.category,
         })
         .from(plans)
         .where(and(eq(plans.id, body.planId), eq(plans.tenantId, tenantId)))
@@ -138,6 +148,16 @@ export async function POST(
       const resolvedEnds =
         endsAt ??
         suggestedSubscriptionEnd(startsAt, pl.billingInterval, pl.termMonths);
+      const overlap = await findOverlappingSubscription(tx, {
+        tenantId,
+        studentId,
+        planId: pl.id,
+        category: pl.category,
+        startsAt,
+      });
+      if (overlap) {
+        throw new OverlapError(overlap.planName);
+      }
       const [row] = await tx
         .insert(studentSubscriptions)
         .values({
@@ -184,6 +204,12 @@ export async function POST(
 
     return NextResponse.json({ subscription: sub }, { status: 201 });
   } catch (e) {
+    if (e instanceof OverlapError) {
+      return jsonError(
+        409,
+        `O aluno já tem matrícula vigente nesta modalidade (${e.planName}). Para mudar de plano use "Trocar plano"; para estender, "Renovar".`,
+      );
+    }
     if (e instanceof Error && e.message === "no_student") {
       return jsonError(404, "Aluno não encontrado.");
     }
