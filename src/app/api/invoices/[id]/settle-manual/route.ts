@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const settleSchema = z.object({
   paymentMethod: z.enum(MANUAL_PAYMENT_METHODS, {
-    errorMap: () => ({ message: "Informe a forma de pagamento (dinheiro, Pix ou cartão)." }),
+    error: "Informe a forma de pagamento (dinheiro, Pix ou cartão).",
   }),
   note: z.string().max(500).optional(),
 });

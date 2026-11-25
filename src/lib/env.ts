@@ -84,7 +84,7 @@ export type Env = z.infer<typeof envSchema>;
 function readEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const msg = parsed.error.flatten().fieldErrors;
+    const msg = z.flattenError(parsed.error).fieldErrors;
     console.error("Variáveis de ambiente inválidas:", msg);
     throw new Error("Falha na validação de ambiente (Zod). Verifique o .env.");
   }
