@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
   const birthDate =
     body.birthDate && body.birthDate.length > 0
-      ? new Date(body.birthDate)
+      ? parseApiDate(body.birthDate)
       : null;
   if (birthDate && Number.isNaN(birthDate.getTime())) {
     return jsonError(400, "Data de nascimento inválida.");

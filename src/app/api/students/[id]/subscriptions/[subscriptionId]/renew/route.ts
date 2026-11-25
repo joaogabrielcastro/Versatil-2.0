@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { jsonError } from "@/lib/api/json";
 import { logAudit } from "@/lib/audit/log";
 import { getSession } from "@/lib/auth/session";
@@ -27,7 +28,7 @@ export async function POST(
   } catch {
     return jsonError(400, "Informe a nova data de fim.");
   }
-  const endsAt = new Date(body.endsAt);
+  const endsAt = parseApiDate(body.endsAt);
   if (Number.isNaN(endsAt.getTime())) return jsonError(400, "Data inválida.");
   const result = await renewTerm({
     tenantId: session.tid,

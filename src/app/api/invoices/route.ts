@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { feeAccessEffectForPlan } from "@/lib/billing/access-effect";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       "Fatura de valor livre só pode ser criada pelo administrador. Use as taxas da tabela.",
     );
   }
-  const dueAt = new Date(body.dueAt);
+  const dueAt = parseApiDate(body.dueAt);
   if (Number.isNaN(dueAt.getTime())) {
     return jsonError(400, "dueAt inválido.");
   }

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { findOverlappingSubscription } from "@/lib/services/billing/subscription-overlap";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseApiDate } from "@/lib/dates/api-date";
 import { logAudit } from "@/lib/audit/log";
 import { jsonError } from "@/lib/api/json";
 import { getSession } from "@/lib/auth/session";
@@ -102,12 +103,12 @@ export async function POST(
     return jsonError(400, "Payload inválido.");
   }
 
-  const startsAt = new Date(body.startsAt);
+  const startsAt = parseApiDate(body.startsAt);
   if (Number.isNaN(startsAt.getTime())) {
     return jsonError(400, "startsAt inválido.");
   }
   const endsAt =
-    body.endsAt && body.endsAt.length > 0 ? new Date(body.endsAt) : null;
+    body.endsAt && body.endsAt.length > 0 ? parseApiDate(body.endsAt) : null;
   if (endsAt && Number.isNaN(endsAt.getTime())) {
     return jsonError(400, "endsAt inválido.");
   }

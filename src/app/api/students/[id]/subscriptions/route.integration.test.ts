@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_COOKIE_NAME } from "@/lib/auth/constants";
 import { signSessionToken } from "@/lib/auth/jwt";
 import { invoices, plans, studentSubscriptions, students } from "@/lib/db/schema";
+import { toIsoDateInTz } from "@/lib/dates/br";
 import { withBypassRlsTransaction } from "@/lib/db/with-tenant";
 import { createTenantWithAdmin } from "@/lib/services/onboarding/create-tenant";
 
@@ -134,5 +135,17 @@ describe("matrícula duplicada", () => {
     ]);
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     expect((await countSubs(t.tenantId, t.student.id)).subs).toBe(1);
+  });
+
+  it("início só com a data vence no mesmo dia em Brasília (não no dia anterior)", async () => {
+    const t = await setup();
+    expect((await subscribe(t.student.id, t.mensal.id, "2026-11-25")).status).toBe(201);
+    const [inv] = await withBypassRlsTransaction((tx) =>
+      tx
+        .select({ dueAt: invoices.dueAt })
+        .from(invoices)
+        .where(and(eq(invoices.tenantId, t.tenantId), eq(invoices.studentId, t.student.id))),
+    );
+    expect(toIsoDateInTz(inv!.dueAt)).toBe("2026-11-25");
   });
 });
