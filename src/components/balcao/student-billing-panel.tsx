@@ -260,7 +260,7 @@ export function StudentBillingPanel({
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const data = q.data!;
@@ -333,7 +333,7 @@ export function StudentBillingPanel({
             Vencimento
             <BrDateInput withTime value={due} onChange={setDue} required />
           </label>
-          {dueError ? <p className="text-sm text-red-600">{dueError}</p> : null}
+          {dueError ? <p className="text-sm text-stop">{dueError}</p> : null}
           <Button type="submit" size="sm" disabled={busy || !due}>
             Criar fatura em aberto
           </Button>

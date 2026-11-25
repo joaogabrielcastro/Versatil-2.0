@@ -218,7 +218,7 @@ function Stat({
         <p className="text-sm text-muted-foreground">{label}</p>
         <p
           className={`mt-1 text-lg font-semibold tabular-nums sm:text-2xl ${
-            tone === "alert" ? "text-red-800" : "text-foreground"
+            tone === "alert" ? "text-stop" : "text-foreground"
           }`}
         >
           {value}
@@ -239,7 +239,7 @@ function Attention({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warn/40 bg-warn-soft px-4 py-2.5 text-sm text-warn">
       <span>
         <span aria-hidden>⚠ </span>
         <span className="sr-only">Atenção: </span>

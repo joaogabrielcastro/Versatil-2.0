@@ -15,8 +15,8 @@ export function FlashMessage({ error, success, onDismiss }: FlashMessageProps) {
       role="alert"
       className={`flex items-start justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
         isError
-          ? "border-red-200 bg-red-50 text-red-800"
-          : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          ? "border-stop/30 bg-stop-soft text-stop"
+          : "border-ok/30 bg-ok-soft text-ok"
       }`}
     >
       <span>{text}</span>

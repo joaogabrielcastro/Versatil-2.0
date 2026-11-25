@@ -136,7 +136,7 @@ export function FinancialReportClient() {
       {q.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : q.isError ? (
-        <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+        <p className="text-sm text-stop">{(q.error as Error).message}</p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
@@ -171,9 +171,9 @@ export function FinancialReportClient() {
                 {q.data!.summary.openCount} fatura(s), a vencer e vencidas
               </p>
             </div>
-            <div className="rounded-lg border border-red-200 bg-red-50/50 p-4 dark:border-red-900 dark:bg-red-950/20">
+            <div className="rounded-lg border border-stop/30 bg-stop-soft p-4 dark:border-stop/30 dark:bg-stop-soft">
               <p className="text-sm text-muted-foreground">Vencidas hoje</p>
-              <p className="text-xl font-semibold text-red-700 dark:text-red-400">
+              <p className="text-xl font-semibold text-stop dark:text-stop">
                 {money(q.data!.summary.overdueCents)}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -184,7 +184,7 @@ export function FinancialReportClient() {
           <p className="text-sm text-muted-foreground">
             Alunos hoje:{" "}
             <span className="font-medium text-foreground">{q.data!.summary.studentsActive}</span> ativos ·{" "}
-            <span className="font-medium text-red-700">{q.data!.summary.studentsDelinquent}</span>{" "}
+            <span className="font-medium text-stop">{q.data!.summary.studentsDelinquent}</span>{" "}
             inadimplentes · {q.data!.summary.studentsInactive} inativos
           </p>
 
@@ -250,7 +250,7 @@ export function FinancialReportClient() {
                     >
                       {r.studentName}
                     </Link>
-                    <span className="text-red-600">
+                    <span className="text-stop">
                       {money(r.amountCents)} · venceu {formatDateBr(r.dueAt)}
                     </span>
                   </li>

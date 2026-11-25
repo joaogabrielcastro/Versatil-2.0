@@ -74,9 +74,9 @@ function summarizeMonth(list: InvoiceLike[], now: Date): MonthStatus {
 }
 
 const STATUS_CLASS: Record<MonthStatus, string> = {
-  paid: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  open: "border-amber-200 bg-amber-50 text-amber-900",
-  overdue: "border-red-200 bg-red-50 text-red-800",
+  paid: "border-ok/30 bg-ok-soft text-ok",
+  open: "border-warn/40 bg-warn-soft text-warn",
+  overdue: "border-stop/30 bg-stop-soft text-stop",
   service: "border-sky-200 bg-sky-50 text-sky-900",
   other: "border-border bg-muted/40 text-muted-foreground",
 };
@@ -118,15 +118,15 @@ export function StudentMonthHistory({ invoices }: { invoices: InvoiceLike[] }) {
       </div>
       <ul className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
         <li>
-          <span className="mr-1 inline-block size-2 rounded-full bg-emerald-500" />
+          <span className="mr-1 inline-block size-2 rounded-full bg-ok" />
           Pago
         </li>
         <li>
-          <span className="mr-1 inline-block size-2 rounded-full bg-amber-500" />
+          <span className="mr-1 inline-block size-2 rounded-full bg-warn" />
           Em aberto
         </li>
         <li>
-          <span className="mr-1 inline-block size-2 rounded-full bg-red-500" />
+          <span className="mr-1 inline-block size-2 rounded-full bg-stop" />
           Inadimplente
         </li>
         <li>

@@ -31,7 +31,7 @@ export function PageHeader({
             </Button>
           ) : null}
           {eyebrow ? (
-            <p className="text-sm font-medium text-primary">{eyebrow}</p>
+            <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
           ) : null}
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           {description ? (

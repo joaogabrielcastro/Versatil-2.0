@@ -67,7 +67,7 @@ export default function PlatformLoginPage() {
           />
         </label>
         {error ? (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-stop dark:text-stop">{error}</p>
         ) : null}
         <Button type="submit" disabled={loading}>
           {loading ? "Entrando…" : "Entrar"}

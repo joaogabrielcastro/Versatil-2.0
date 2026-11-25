@@ -102,8 +102,8 @@ export function IntegracoesClient({
         <p className="font-medium text-foreground">Como funciona na prática</p>
         <p className="mt-2 text-muted-foreground">
           A catraca consulta o sistema após reconhecer o aluno. Se estiver{" "}
-          <strong className="text-emerald-700">ativo</strong> e em dia, libera a
-          entrada. Se estiver <strong className="text-red-700">inadimplente</strong>,
+          <strong className="text-ok">ativo</strong> e em dia, libera a
+          entrada. Se estiver <strong className="text-stop">inadimplente</strong>,
           bloqueia. Pagamentos registrados no balcão liberam o aluno na hora.
         </p>
       </div>
@@ -135,7 +135,7 @@ Body (um deles):
         {q.isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : q.isError ? (
-          <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+          <p className="text-sm text-stop">{(q.error as Error).message}</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {(q.data?.items ?? []).length === 0 ? (
@@ -150,7 +150,7 @@ Body (um deles):
                     <div className="font-medium">
                       {d.name}
                       {d.revokedAt ? (
-                        <span className="ml-2 text-xs font-normal text-red-700">Revogado</span>
+                        <span className="ml-2 text-xs font-normal text-stop">Revogado</span>
                       ) : null}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -199,12 +199,12 @@ Body (um deles):
           </Button>
         </form>
         {newToken ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <div className="rounded-md border border-warn/40 bg-warn-soft p-3 text-sm text-warn">
             <p className="font-medium">Token (copie agora — não será exibido de novo):</p>
             <code className="mt-1 block break-all text-xs">{newToken}</code>
           </div>
         ) : null}
-        {err ? <p className="text-sm text-red-600">{err}</p> : null}
+        {err ? <p className="text-sm text-stop">{err}</p> : null}
       </section>
 
       {stoneEnabled ? (
@@ -327,7 +327,7 @@ function KioskDevicesSection() {
       {q.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : q.isError ? (
-        <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+        <p className="text-sm text-stop">{(q.error as Error).message}</p>
       ) : (
         <ul className="space-y-2 text-sm">
           {(q.data?.items ?? []).length === 0 ? (
@@ -388,12 +388,12 @@ function KioskDevicesSection() {
         </Button>
       </form>
       {newToken ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+        <div className="rounded-md border border-warn/40 bg-warn-soft p-3 text-sm text-warn">
           <p className="font-medium">Token (copie agora — não será exibido de novo):</p>
           <code className="mt-1 block break-all text-xs">{newToken}</code>
         </div>
       ) : null}
-      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      {err ? <p className="text-sm text-stop">{err}</p> : null}
     </section>
   );
 }

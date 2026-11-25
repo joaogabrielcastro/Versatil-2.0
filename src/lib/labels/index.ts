@@ -5,8 +5,8 @@ export const STUDENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const STUDENT_STATUS_STYLES: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  delinquent: "bg-red-100 text-red-800 border-red-200",
+  active: "bg-ok-soft text-ok border-ok/30",
+  delinquent: "bg-stop-soft text-stop border-stop/30",
   inactive: "bg-zinc-100 text-zinc-600 border-zinc-200",
 };
 

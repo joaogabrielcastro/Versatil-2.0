@@ -36,7 +36,7 @@ export function StudentAttendancePanel({ studentId }: { studentId: string }) {
     return <p className="text-sm text-muted-foreground">Carregando presença…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const days = q.data?.days ?? [];
@@ -47,7 +47,7 @@ export function StudentAttendancePanel({ studentId }: { studentId: string }) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         {cameToday ? (
-          <span className="text-green-700 dark:text-green-400">
+          <span className="text-ok dark:text-ok">
             Entrada registrada hoje ({formatIsoDateBr(today)}) — catraca / facial.
           </span>
         ) : (

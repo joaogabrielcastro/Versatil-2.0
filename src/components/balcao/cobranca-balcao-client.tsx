@@ -164,7 +164,7 @@ export function CobrancaBalcaoClient({
     );
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const items = q.data?.items ?? [];
@@ -262,7 +262,7 @@ export function CobrancaBalcaoClient({
       </Card>
 
       {blockingOverdue.length > 0 ? (
-        <p className="text-sm font-medium text-red-700">
+        <p className="text-sm font-medium text-stop">
           {blockingOverdue.length} fatura(s) vencida(s) bloqueiam a catraca.
         </p>
       ) : null}
@@ -304,7 +304,7 @@ export function CobrancaBalcaoClient({
               <div>
                 <Link
                   href={`/balcao/alunos/${inv.studentId}`}
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   {inv.studentName}
                 </Link>

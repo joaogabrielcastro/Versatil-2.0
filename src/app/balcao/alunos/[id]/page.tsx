@@ -72,7 +72,7 @@ export default async function AlunoDetalhePage({
         <StudentStatusBadge status={student.status} />
       </PageHeader>
       {student.renewalChargeMissing ? (
-        <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <p className="mt-4 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm text-warn">
           A renovação já começou, mas a cobrança deste período não foi gerada.
           Isso não é inadimplência. Em Cobrança, use Gerar faturas do período.
           A catraca permanece fechada até essa cobrança existir.

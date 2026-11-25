@@ -193,7 +193,7 @@ export function GradeManageClient({ isAdmin }: { isAdmin: boolean }) {
     return <p className="text-sm text-muted-foreground">Carregando grade…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const items = q.data ?? [];
@@ -373,9 +373,9 @@ export function GradeManageClient({ isAdmin }: { isAdmin: boolean }) {
                       {activity.category}
                       {" · "}
                       {activity.active ? (
-                        <span className="text-emerald-700">ativa</span>
+                        <span className="text-ok">ativa</span>
                       ) : (
-                        <span className="text-red-700">inativa</span>
+                        <span className="text-stop">inativa</span>
                       )}
                     </p>
                   </div>

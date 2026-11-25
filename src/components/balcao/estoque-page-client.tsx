@@ -468,7 +468,7 @@ export function EstoquePageClient({ isAdmin }: { isAdmin: boolean }) {
   }
   if (productsQ.isError) {
     return (
-      <p className="text-sm text-red-600">{(productsQ.error as Error).message}</p>
+      <p className="text-sm text-stop">{(productsQ.error as Error).message}</p>
     );
   }
 
@@ -749,7 +749,7 @@ export function EstoquePageClient({ isAdmin }: { isAdmin: boolean }) {
                             <p className="font-medium text-foreground">
                               {p.name}
                               {!p.active ? (
-                                <span className="ml-2 text-xs font-normal text-red-700">
+                                <span className="ml-2 text-xs font-normal text-stop">
                                   inativo
                                 </span>
                               ) : null}
@@ -1168,9 +1168,9 @@ function SummaryCard({
 }) {
   const valueClass =
     accent === "red"
-      ? "text-red-700"
+      ? "text-stop"
       : accent === "amber"
-        ? "text-amber-700"
+        ? "text-warn"
         : "text-foreground";
   return (
     <Card>
@@ -1194,10 +1194,10 @@ function StockBadge({
   const status = stockStatus(quantity, threshold);
   const cls =
     status === "out"
-      ? "bg-red-100 text-red-800 border-red-200"
+      ? "bg-stop-soft text-stop border-stop/30"
       : status === "low"
-        ? "bg-amber-100 text-amber-800 border-amber-200"
-        : "bg-emerald-100 text-emerald-800 border-emerald-200";
+        ? "bg-warn-soft text-warn border-warn/40"
+        : "bg-ok-soft text-ok border-ok/30";
   const label =
     status === "out"
       ? "Sem estoque"

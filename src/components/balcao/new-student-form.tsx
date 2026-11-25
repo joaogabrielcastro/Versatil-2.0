@@ -95,7 +95,7 @@ export function NewStudentForm({ onCreated }: Props) {
           aria-describedby={cpfError ? "new-student-cpf-error" : undefined}
         />
         {cpfError ? (
-          <p id="new-student-cpf-error" className="text-sm text-red-600">
+          <p id="new-student-cpf-error" className="text-sm text-stop">
             {cpfError}
           </p>
         ) : null}

@@ -76,7 +76,7 @@ export function DailyAttendanceClient() {
       {q.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : q.isError ? (
-        <p className="text-sm text-red-600">{(q.error as Error).message}</p>
+        <p className="text-sm text-stop">{(q.error as Error).message}</p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">

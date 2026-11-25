@@ -124,7 +124,7 @@ export function WorkoutTemplatesManageClient({ isAdmin }: { isAdmin: boolean }) 
     return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
   if (q.isError) {
-    return <p className="text-sm text-red-600">{(q.error as Error).message}</p>;
+    return <p className="text-sm text-stop">{(q.error as Error).message}</p>;
   }
 
   const items = q.data ?? [];
