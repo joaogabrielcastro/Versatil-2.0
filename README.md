@@ -71,12 +71,13 @@ npm run worker   # filas BullMQ (obrigatório para webhooks/import)
 | `npm run db:backup` | Dump Postgres (`pg_dump`; ou `BACKUP_VIA_DOCKER=1`) |
 | `npm run worker` | Processador de filas |
 | `npm test` | Testes unitários (Vitest) |
+| `npm run test:e2e` | Fluxos no navegador (Playwright): login, cadastro, matrícula e pagamento, perfis, isolamento entre academias, celular. Requer `npm run build`, Postgres e Redis |
 | `npm run typecheck` | TypeScript |
 | `npm run build` | Build de produção |
 
 ## CI e crons
 
-GitHub Actions em `.github/workflows/ci.yml` — lint, typecheck, **test**, build.
+GitHub Actions em `.github/workflows/ci.yml` — lint, typecheck, **test**, build e **E2E**.
 
 Crons (secrets obrigatórios no repositório: **`APP_BASE_URL`** + **`CRON_SECRET`**):
 
