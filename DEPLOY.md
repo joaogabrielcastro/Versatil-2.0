@@ -1,6 +1,6 @@
 # Implantação — checklist
 
-Não rode estas migrations no banco de produção sem revisar. O `npm start` aplica o que estiver em `drizzle/` se `SKIP_MIGRATIONS` não for `true`.
+Não rode estas migrations no banco de produção sem revisar. O `npm start` (e o `CMD` do Dockerfile) aplica o que estiver em `drizzle/` se `SKIP_MIGRATIONS` não for `true`, usando `MIGRATION_DATABASE_URL` (login dono das tabelas). Sem essa variável ele tenta `DATABASE_URL`, que em produção é o runtime e falha por falta de permissão — o container não sobe.
 
 Termo `source = migration`: o preço copiado do plano vale só a partir de `valid_from` (a data da migration, em `0016`). Ciclos anteriores sem termo próprio vão para `billing_reviews` e não são cobrados. Uma fatura antiga não define o preço dos outros ciclos.
 
@@ -25,7 +25,7 @@ Login da aplicação, sem senha neste arquivo. Quem executa é o login das migra
 
 O script cria `versatil_runtime` e `versatil_jobs` (`NOSUPERUSER`, `NOBYPASSRLS`), concede `versatil_app` ao runtime e `versatil_platform` ao jobs, e revoga plataforma do runtime. A `0018` entrega ao grupo `versatil_platform` uso do schema `app`, execução das funções e DML nas tabelas existentes. Objetos futuros criados pelo mesmo login herdam esse privilégio. Um dump com `--no-acl` não recria papéis globais nem os GRANT. Em servidor novo, restaure e rode este script de novo com o login dono dos objetos.
 
-`DATABASE_URL` = `versatil_runtime`. `PLATFORM_DATABASE_URL` = `versatil_jobs`. Sem a segunda variável, cron e bypass respondem 503 com a mensagem `PLATFORM_DATABASE_URL ausente` e não usam o login da aplicação.
+`DATABASE_URL` = `versatil_runtime`. `PLATFORM_DATABASE_URL` = `versatil_jobs`. `MIGRATION_DATABASE_URL` e `BACKUP_DATABASE_URL` = login dono das tabelas (o que aplicou as migrations). Nunca use o dono como `DATABASE_URL`. Sem a segunda variável, cron e bypass respondem 503 com a mensagem `PLATFORM_DATABASE_URL ausente` e não usam o login da aplicação.
 
 Prova, conectado como `versatil_runtime`:
 
