@@ -183,6 +183,13 @@
       "when": 1778616000000,
       "tag": "0025_turnstile_device_revocation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778617000000,
+      "tag": "0026_force_rls_remaining",
+      "breakpoints": true
     }
   ]
 }
