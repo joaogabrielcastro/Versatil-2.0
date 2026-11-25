@@ -6,6 +6,7 @@ import { StudentAttendancePanel } from "@/components/balcao/student-attendance-p
 import { StudentBillingPanel } from "@/components/balcao/student-billing-panel";
 import { StudentSubscriptionsPanel } from "@/components/balcao/student-subscriptions-panel";
 import { StudentWorkoutsPanel } from "@/components/balcao/student-workouts-panel";
+import { StudentPrivacyPanel } from "@/components/balcao/student-privacy-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StudentStatusBadge } from "@/components/ui/status-badge";
@@ -40,6 +41,7 @@ export default async function AlunoDetalhePage({
         whatsapp: students.whatsapp,
         birthDate: students.birthDate,
         facialVectorRef: students.facialVectorRef,
+        anonymizedAt: students.anonymizedAt,
         status: effectiveStudentStatusSql(),
       })
       .from(students)
@@ -145,6 +147,18 @@ export default async function AlunoDetalhePage({
           />
         </div>
       </section>
+
+      {session.role === "tenant_admin" ? (
+        <section id="student-privacidade" className="mt-8 scroll-mt-36 pb-4">
+          <h2 className="text-lg font-medium">Privacidade (LGPD)</h2>
+          <div className="mt-4">
+            <StudentPrivacyPanel
+              studentId={student.id}
+              anonymized={Boolean(student.anonymizedAt)}
+            />
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

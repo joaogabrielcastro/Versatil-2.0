@@ -116,12 +116,12 @@ export async function POST(
     const [sub, plan] = await withTenantTransaction(tenantId, async (tx) => {
       // Trava o aluno: duas matrículas simultâneas não passam juntas pela checagem.
       const [stu] = await tx
-        .select({ id: students.id })
+        .select({ id: students.id, anonymizedAt: students.anonymizedAt })
         .from(students)
         .where(and(eq(students.id, studentId), eq(students.tenantId, tenantId)))
         .limit(1)
         .for("update");
-      if (!stu) {
+      if (!stu || stu.anonymizedAt) {
         throw new Error("no_student");
       }
       const [pl] = await tx

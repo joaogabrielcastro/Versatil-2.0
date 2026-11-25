@@ -87,12 +87,15 @@ export async function PATCH(
 
   const updated = await withTenantTransaction(tenantId, async (tx) => {
     const [existing] = await tx
-      .select({ id: students.id })
+      .select({ id: students.id, anonymizedAt: students.anonymizedAt })
       .from(students)
       .where(and(eq(students.id, id), eq(students.tenantId, tenantId)))
       .limit(1);
     if (!existing) {
       return null;
+    }
+    if (existing.anonymizedAt) {
+      return "anonymized" as const;
     }
 
     const patch: {
@@ -123,6 +126,9 @@ export async function PATCH(
 
   if (!updated) {
     return jsonError(404, "Aluno não encontrado.");
+  }
+  if (updated === "anonymized") {
+    return jsonError(409, "Aluno anonimizado: os dados pessoais não podem ser restaurados.");
   }
 
   await recalculateStudentStatus(tenantId, id);

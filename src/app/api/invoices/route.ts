@@ -58,13 +58,13 @@ export async function POST(request: Request) {
   try {
     const result = await withTenantTransaction(tenantId, async (tx) => {
       const [stu] = await tx
-        .select({ id: students.id })
+        .select({ id: students.id, anonymizedAt: students.anonymizedAt })
         .from(students)
         .where(
           and(eq(students.id, body.studentId), eq(students.tenantId, tenantId)),
         )
         .limit(1);
-      if (!stu) {
+      if (!stu || stu.anonymizedAt) {
         throw new Error("student_not_found");
       }
 

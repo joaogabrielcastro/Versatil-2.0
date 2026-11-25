@@ -48,6 +48,7 @@ npm run worker   # filas BullMQ (obrigatório para webhooks/import)
 | **[INTEGRACOES.md](./INTEGRACOES.md)** | Catraca e webhooks |
 | **[DEMO.md](./DEMO.md)** | Roteiro de apresentação |
 | **[QUESTIONARIO-CLIENTE.md](./QUESTIONARIO-CLIENTE.md)** | Levantamento com o cliente |
+| **[LGPD.md](./LGPD.md)** | Direitos do titular, o que está implementado e o que falta |
 
 ## Módulos principais
 

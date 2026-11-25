@@ -144,6 +144,8 @@ export const students = pgTable(
     /** Referência a blob/URL de foto ou embedding — MVP como texto opcional */
     facialVectorRef: text("facial_vector_ref"),
     status: studentStatusEnum("status").notNull().default("inactive"),
+    /** LGPD: dados pessoais removidos. Faturas e presença permanecem sem identificação. */
+    anonymizedAt: timestamp("anonymized_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
