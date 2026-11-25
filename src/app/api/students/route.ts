@@ -122,7 +122,8 @@ export async function POST(request: Request) {
       action: "student.created",
       entity: "student",
       entityId: created!.id,
-      payload: { fullName: body.fullName },
+      // LGPD: o aluno é identificado por entityId; dados pessoais não vão para a auditoria.
+      payload: {},
     });
     return NextResponse.json({ student: created }, { status: 201 });
   } catch {

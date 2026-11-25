@@ -99,7 +99,8 @@ export async function PATCH(
     action: "student_workout.updated",
     entity: "student_workout",
     entityId: workoutId,
-    payload: body,
+    // Observações de treino podem conter dados de saúde: só os campos alterados.
+    payload: { fields: Object.keys(body) },
   });
 
   return NextResponse.json({ workout: updated });

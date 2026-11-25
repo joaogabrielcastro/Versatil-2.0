@@ -133,7 +133,8 @@ export async function PATCH(
     action: "student.updated",
     entity: "student",
     entityId: id,
-    payload: body,
+    // LGPD: registra quais campos mudaram, não os valores pessoais.
+    payload: { fields: Object.keys(body) },
   });
 
   return NextResponse.json({ student: updated });
