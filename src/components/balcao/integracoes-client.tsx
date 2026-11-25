@@ -57,6 +57,37 @@ export function IntegracoesClient({ appUrl }: { appUrl: string }) {
     }
   }
 
+  async function changeDevice(device: Device, action: "revoke" | "rotate") {
+    const question =
+      action === "revoke"
+        ? `Revogar "${device.name}"? A catraca deixa de consultar o sistema com este token na hora.`
+        : `Gerar token novo para "${device.name}"? O token antigo para de funcionar.`;
+    if (!window.confirm(question)) return;
+    setBusy(true);
+    setErr(null);
+    setNewToken(null);
+    try {
+      const res = await fetch(`/api/turnstile/devices/${device.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deviceToken?: string;
+      };
+      if (!res.ok) {
+        setErr(j.error ?? "Não foi possível alterar o dispositivo.");
+        return;
+      }
+      if (j.deviceToken) setNewToken(j.deviceToken);
+      await qc.invalidateQueries({ queryKey: ["turnstile-devices"] });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const base = appUrl.replace(/\/$/, "");
 
   return (
@@ -87,7 +118,8 @@ Body (um deles):
   { "studentId": "<uuid>" }
 
 200 → { "open": true }
-403 → { "open": false, "message": "Aluno inadimplente." }`}
+403 → { "open": false, "message": "Acesso não autorizado." }
+       (o motivo fica no histórico de acessos, não na resposta)`}
         </pre>
         <p className="text-xs text-muted-foreground">
           Preferência na academia: enviar o <code className="text-foreground">studentCode</code>{" "}
@@ -105,11 +137,44 @@ Body (um deles):
               <li className="text-muted-foreground">Nenhum dispositivo.</li>
             ) : (
               q.data!.items.map((d) => (
-                <li key={d.id} className="rounded-md border border-border p-2">
-                  <div className="font-medium">{d.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    ID {d.id.slice(0, 8)}… · Criado{" "}
-                    {formatDateTimeBr(d.createdAt)}
+                <li
+                  key={d.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2"
+                >
+                  <div>
+                    <div className="font-medium">
+                      {d.name}
+                      {d.revokedAt ? (
+                        <span className="ml-2 text-xs font-normal text-red-700">Revogado</span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      ID {d.id.slice(0, 8)}… · Criado {formatDateTimeBr(d.createdAt)}
+                      {d.lastSeenAt ? ` · Último uso ${formatDateTimeBr(d.lastSeenAt)}` : ""}
+                      {d.revokedAt ? ` · Revogado ${formatDateTimeBr(d.revokedAt)}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void changeDevice(d, "rotate")}
+                    >
+                      {d.revokedAt ? "Reativar com token novo" : "Gerar token novo"}
+                    </Button>
+                    {!d.revokedAt ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void changeDevice(d, "revoke")}
+                      >
+                        Revogar
+                      </Button>
+                    ) : null}
                   </div>
                 </li>
               ))
@@ -152,9 +217,12 @@ Body (B): {
   "eventId": "id-unico",
   "type": "invoice.paid",
   "invoiceId": "<uuid da fatura>",
-  "stoneChargeId": "opcional",
-  "amountCents": 9900
-}`}
+  "stoneChargeId": "<id da cobrança na Stone>",
+  "amountCents": 9900,
+  "currency": "BRL"
+}
+Sem stoneChargeId, valor e moeda iguais aos da fatura,
+o pagamento NÃO é baixado.`}
         </pre>
         <p className="text-xs text-muted-foreground">
           Evento <code className="text-foreground">invoice.payment_failed</code>{" "}

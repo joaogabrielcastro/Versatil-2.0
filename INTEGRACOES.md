@@ -53,11 +53,15 @@ No import de alunos, o COD Tecnofit é gravado automaticamente (`facial_vector_r
 
 | HTTP | Corpo | Significado |
 |------|--------|-------------|
-| `200` | `{ "open": true }` | Aluno **ativo** — liberar catraca |
-| `403` | `{ "open": false, "message": "Aluno inadimplente." }` | Fatura vencida em aberto |
-| `403` | `{ "open": false, "message": "Aluno inativo." }` | Sem plano vigente |
-| `403` | `{ "open": false, "message": "Aluno não encontrado." }` | COD/CPF/UUID desconhecido |
-| `401` | Token inválido ou ausente | Dispositivo não cadastrado |
+| `200` | `{ "open": true }` | Aluno em dia — liberar catraca |
+| `403` | `{ "open": false, "message": "Acesso não autorizado." }` | Bloqueado (inadimplente, sem plano vigente ou não encontrado). O motivo fica só em `access_events`, não na resposta |
+| `401` | Token inválido, ausente ou revogado | Dispositivo não cadastrado ou revogado |
+| `429` | `{ "open": false }` | Limite de tentativas por dispositivo (padrão 120/min, `TURNSTILE_RATE_LIMIT_PER_MINUTE`) |
+| `503` | `{ "open": false }` | Falha de banco: a porta não abre |
+
+### Revogar ou trocar o token
+
+Integrações → Dispositivos cadastrados → **Revogar** (o token para de funcionar na hora) ou **Gerar token novo** (reativa com token novo, exibido uma vez). O histórico de acessos é mantido.
 
 ### Gateway Control iD (academia Versátil Colombo)
 

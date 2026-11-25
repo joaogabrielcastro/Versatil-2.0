@@ -527,6 +527,8 @@ export const turnstileDevices = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     /** Hash do token de dispositivo (nunca armazenar token puro) */
     tokenHash: text("token_hash").notNull(),
+    /** Token revogado não autoriza mais a catraca. Histórico de acessos é mantido. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

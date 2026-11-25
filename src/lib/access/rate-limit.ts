@@ -1,7 +1,16 @@
 import { getRedis } from "@/lib/redis";
 
 const WINDOW_MS = 60_000;
-const MAX = 20;
+/**
+ * Tentativas por minuto por dispositivo. 20 bloqueava entradas legítimas no
+ * início de aula (o reconhecimento facial repete leituras). Ajustável por
+ * TURNSTILE_RATE_LIMIT_PER_MINUTE.
+ */
+const DEFAULT_MAX = 120;
+const MAX = (() => {
+  const raw = Number(process.env.TURNSTILE_RATE_LIMIT_PER_MINUTE);
+  return Number.isInteger(raw) && raw > 0 ? raw : DEFAULT_MAX;
+})();
 const memoryHits = new Map<string, { count: number; resetAt: number }>();
 
 export function checkTurnstileRateLimitMemory(

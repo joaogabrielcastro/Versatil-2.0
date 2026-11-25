@@ -33,6 +33,7 @@ export async function GET() {
         id: turnstileDevices.id,
         name: turnstileDevices.name,
         lastSeenAt: turnstileDevices.lastSeenAt,
+        revokedAt: turnstileDevices.revokedAt,
         createdAt: turnstileDevices.createdAt,
       })
       .from(turnstileDevices)
