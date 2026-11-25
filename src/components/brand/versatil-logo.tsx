@@ -25,8 +25,11 @@ export function VersatilLogo({
       width={width}
       height={height}
       priority={priority}
-      className={`h-auto w-auto object-contain object-left ${className}`}
-      style={{ maxHeight: height }}
+      // SVG não passa pelo otimizador do Next (responde 400); serve o arquivo estático.
+      unoptimized
+      // O SVG não declara width/height: sem tamanho explícito o navegador o desenha 0×0.
+      className={`object-contain object-left ${className}`}
+      style={{ width, height }}
     />
   );
 
